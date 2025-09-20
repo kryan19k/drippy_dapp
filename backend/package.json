@@ -1,0 +1,52 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js",
+    "build": "echo 'no build'",
+    "setup:testnet": "node setup-testnet-accounts.js",
+    "deploy:hook": "node hooks/deployHook.js",
+    "deploy:enhanced": "node hooks/deploy-enhanced.js",
+    "deploy:testnet": "node hooks/deploy-enhanced.js --network testnet",
+    "deploy:mainnet": "node hooks/deploy-enhanced.js --network mainnet",
+    "gen:sethook": "node hooks/build-sethook-from-env.js",
+    "hooks:build": "cd hooks && make build-all",
+    "hooks:build-claim": "cd hooks && make build-claim",
+    "hooks:build-router": "cd hooks && make build-router",
+    "hooks:verify": "cd hooks && make verify",
+    "hooks:clean": "cd hooks && make clean",
+    "indexer": "node src/indexer.worker.js",
+    "amm:indexer": "node src/amm.indexer.js",
+    "monitor:hooks": "node src/hook-monitor.js",
+    "monitor:simple": "node src/simple-hook-monitor.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@bithomp/xrpl-api": "^3.6.3",
+    "axios": "^1.12.2",
+    "better-auth": "^1.3.12",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "node-fetch": "^3.3.2",
+    "socket.io": "^4.8.1",
+    "ws": "^8.18.3",
+    "xahau": "^4.0.0",
+    "xrpl": "^4.4.1",
+    "xumm-sdk": "^1.11.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.3.3",
+    "nodemon": "^3.1.10",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2"
+  }
+}

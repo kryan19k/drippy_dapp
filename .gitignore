@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Environment files
+.env
+.env*.local
+*.seeds.backup
+
+# OS files
+.DS_Store
+
+# Build outputs
+build/
+dist/
+
+# Video files
+Videos/
+*.mp4
+
+# Documentation
+xahau-docks/
+
+# Testnet seeds
+TESTNET_ACCOUNT_SEEDS.txt
+*testnet*.txt
+*mainnet*.txt
+*account*.txt
+*seed*.txt

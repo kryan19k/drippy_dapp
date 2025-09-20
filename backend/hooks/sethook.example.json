@@ -1,0 +1,23 @@
+{
+  "TransactionType": "SetHook",
+  "Account": "rISSUER_OR_ROUTER_ACCOUNT",
+  "Hooks": [
+    {
+      "Hook": {
+        "CreateCode": "<BASE16_HOOK_BYTECODE>",
+        "HookOn": "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
+        "HookNamespace": "4452495050590000000000000000000000000000000000000000000000000001",
+        "HookParameters": [
+          { "HookParameter": { "HookParameterName": "435552", "HookParameterValue": "445249505059" } },
+          { "HookParameter": { "HookParameterName": "495353554552", "HookParameterValue": "<ISSUER_HEX>" } },
+          { "HookParameter": { "HookParameterName": "5452454153555259", "HookParameterValue": "<TREASURY_RADDRESS_HEX>" } },
+          { "HookParameter": { "HookParameterName": "4E46545F504F4F4C", "HookParameterValue": "<NFT_POOL_RADDRESS_HEX>" } },
+          { "HookParameter": { "HookParameterName": "484F4C445F504F4F4C", "HookParameterValue": "<HOLDER_POOL_RADDRESS_HEX>" } },
+          { "HookParameter": { "HookParameterName": "414C4C4F435F4E4654", "HookParameterValue": "00000000000003E8" } },
+          { "HookParameter": { "HookParameterName": "414C4C4F435F484F4C44", "HookParameterValue": "00000000000007D0" } }
+        ]
+      }
+    }
+  ]
+}
+
