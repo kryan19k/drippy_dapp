@@ -88,15 +88,15 @@ const Navigation: React.FC<NavigationProps> = ({ layout = 'top', className = '' 
                         <User className="w-5 h-5 text-primary-400" />
                       </div>
                       <div>
-                        <div className="text-white font-medium">Connected</div>
-                        <div className="text-xs text-gray-400 font-mono">
+                        <div className="text-foreground font-medium">Connected</div>
+                        <div className="text-xs text-muted-foreground font-mono">
                           {account ? `${account.slice(0, 12)}...${account.slice(-8)}` : ''}
                         </div>
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <button className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-all">
+                      <button className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
                         <Settings className="w-4 h-4" />
                         <span className="text-sm">Account Settings</span>
                       </button>
@@ -119,7 +119,7 @@ const Navigation: React.FC<NavigationProps> = ({ layout = 'top', className = '' 
           onClick={connectWallet}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
-          className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-primary-500 to-turquoise-500 hover:from-primary-400 hover:to-turquoise-400 text-white rounded-lg transition-all duration-300 shadow-lg shadow-primary-500/25"
+          className="flex items-center space-x-2 px-4 py-2 drip-gradient hover:opacity-90 text-primary-foreground rounded-lg transition-all duration-300 shadow-drip"
         >
           <Wallet className="w-4 h-4" />
           <span className="hidden sm:inline">Connect Wallet</span>
@@ -138,7 +138,7 @@ const Navigation: React.FC<NavigationProps> = ({ layout = 'top', className = '' 
         />
       </div>
       {(!shouldUseSidebar || !isSidebarCollapsed) && (
-        <span className="text-xl font-bold text-white group-hover:text-primary-300 transition-colors">
+        <span className="text-xl font-bold text-foreground group-hover:text-primary transition-colors">
           Drippy
         </span>
       )}
@@ -153,12 +153,12 @@ const Navigation: React.FC<NavigationProps> = ({ layout = 'top', className = '' 
         <motion.aside
           initial={{ x: -280 }}
           animate={{ x: 0 }}
-          className={`hidden lg:flex flex-col fixed left-0 top-0 h-full z-[40] glass border-r border-white/10 backdrop-blur-xl transition-all duration-300 ${
+          className={`hidden lg:flex flex-col fixed left-0 top-0 h-full z-[40] card-elevated border-r border-border backdrop-blur-xl transition-all duration-300 ${
             isSidebarCollapsed ? 'w-20' : 'w-72'
           } ${className}`}
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-white/10">
+          <div className="flex items-center justify-between p-6 border-b border-border">
             <LogoSection />
             <motion.button
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -167,9 +167,9 @@ const Navigation: React.FC<NavigationProps> = ({ layout = 'top', className = '' 
               className="p-2 rounded-lg glass border border-white/20 hover:border-white/40 transition-all"
             >
               {isSidebarCollapsed ? (
-                <ChevronRight className="w-4 h-4 text-white" />
+                <ChevronRight className="w-4 h-4 text-foreground" />
               ) : (
-                <ChevronLeft className="w-4 h-4 text-white" />
+                <ChevronLeft className="w-4 h-4 text-foreground" />
               )}
             </motion.button>
           </div>
@@ -188,7 +188,7 @@ const Navigation: React.FC<NavigationProps> = ({ layout = 'top', className = '' 
                       className={`flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
                         isActive(item.href)
                           ? 'bg-primary-500/20 text-primary-400 border border-primary-500/30'
-                          : 'text-gray-300 hover:text-white hover:bg-white/10'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                       }`}
                     >
                       <Icon className="w-5 h-5 flex-shrink-0" />
@@ -233,7 +233,7 @@ const Navigation: React.FC<NavigationProps> = ({ layout = 'top', className = '' 
               <NetworkSwitcher />
               <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="p-2 text-gray-400 hover:text-white transition-colors"
+                className="p-2 text-muted-foreground hover:text-foreground transition-colors"
               >
                 {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
               </button>
@@ -277,7 +277,7 @@ const Navigation: React.FC<NavigationProps> = ({ layout = 'top', className = '' 
                             className={`flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 ${
                               isActive(item.href)
                                 ? 'bg-primary-500/20 text-primary-400 border border-primary-500/30'
-                                : 'text-gray-300 hover:text-white hover:bg-white/10'
+                                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                             }`}
                           >
                             <Icon className="w-5 h-5" />
@@ -319,7 +319,7 @@ const Navigation: React.FC<NavigationProps> = ({ layout = 'top', className = '' 
                     className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-all duration-200 ${
                       isActive(item.href)
                         ? 'bg-primary-500/20 text-primary-400 border border-primary-500/30'
-                        : 'text-gray-300 hover:text-white hover:bg-white/5'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                     }`}
                   >
                     <Icon className="w-4 h-4" />
@@ -340,7 +340,7 @@ const Navigation: React.FC<NavigationProps> = ({ layout = 'top', className = '' 
             {/* Mobile menu button */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="md:hidden p-2 text-gray-400 hover:text-white transition-colors"
+              className="md:hidden p-2 text-muted-foreground hover:text-foreground transition-colors"
             >
               {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
@@ -376,7 +376,7 @@ const Navigation: React.FC<NavigationProps> = ({ layout = 'top', className = '' 
                         className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-all duration-200 ${
                           isActive(item.href)
                             ? 'bg-primary-500/20 text-primary-400 border border-primary-500/30'
-                            : 'text-gray-300 hover:text-white hover:bg-white/5'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                         }`}
                       >
                         <Icon className="w-5 h-5" />

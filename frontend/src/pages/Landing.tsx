@@ -127,17 +127,17 @@ const Landing: React.FC = () => {
                 </motion.div>
 
                 <div className="text-center lg:text-left">
-                  <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white mb-4 leading-tight">
-                    <span className="bg-gradient-to-r from-primary-300 via-turquoise-400 to-accent-400 bg-clip-text text-transparent">
+                  <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-foreground mb-4 leading-tight">
+                    <span className="bg-gradient-to-r from-primary via-primary to-accent bg-clip-text text-transparent">
                       Drippy
                     </span>
                     <br />
-                    <span className="text-gray-200">DeFi Rewards</span>
+                    <span className="text-muted-foreground">DeFi Rewards</span>
                   </h1>
                 </div>
               </div>
 
-              <p className="mt-6 max-w-3xl mx-auto text-xl text-gray-300 leading-relaxed">
+              <p className="mt-6 max-w-3xl mx-auto text-xl text-muted-foreground leading-relaxed">
                 Experience the next generation of DeFi rewards on XRPL. Earn, track, and claim rewards in real-time
                 with seamless wallet connectivity, NFT utility, and comprehensive analytics.
               </p>
@@ -149,7 +149,7 @@ const Landing: React.FC = () => {
                 >
                   <Link
                     to="/dashboard"
-                    className="group inline-flex items-center justify-center px-8 py-4 rounded-xl bg-gradient-to-r from-primary-500 to-turquoise-500 hover:from-primary-400 hover:to-turquoise-400 text-white font-semibold transition-all duration-300 shadow-lg shadow-primary-500/25 hover:shadow-xl hover:shadow-primary-500/40 transform hover:-translate-y-1"
+                    className="group inline-flex items-center justify-center px-8 py-4 rounded-xl drip-gradient hover:opacity-90 text-primary-foreground font-semibold transition-all duration-300 shadow-lg shadow-drip hover:shadow-xl transform hover:-translate-y-1"
                   >
                     <Droplets className="w-5 h-5 mr-3 group-hover:animate-bounce" />
                     Launch Drippy App
@@ -165,7 +165,7 @@ const Landing: React.FC = () => {
                     href="https://xumm.app/"
                     target="_blank"
                     rel="noreferrer"
-                    className="group inline-flex items-center justify-center px-8 py-4 rounded-xl glass border border-accent-500/40 text-white/90 hover:text-white hover:bg-accent-500/10 transition-all duration-300 backdrop-blur-xl hover:border-accent-400/60"
+                    className="group inline-flex items-center justify-center px-8 py-4 rounded-xl glass border border-accent/40 text-foreground hover:text-accent hover:bg-accent/10 transition-all duration-300 backdrop-blur-xl hover:border-accent/60"
                   >
                     <Wallet className="w-5 h-5 mr-3" />
                     Get Xaman Wallet
@@ -191,11 +191,11 @@ const Landing: React.FC = () => {
                   <div className="flex items-start space-x-4">
                     <div className="flex-shrink-0">
                       <div className="w-12 h-12 rounded-xl drip-gradient flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                        <feature.icon className="w-6 h-6 text-white" />
+                        <feature.icon className="w-6 h-6 text-foreground" />
                       </div>
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-white mb-2">{feature.title}</h3>
+                      <h3 className="text-lg font-semibold text-foreground mb-2">{feature.title}</h3>
                       <p className="text-gray-400 text-sm leading-relaxed">
                         {hoveredFeature === idx ? feature.detail : feature.desc}
                       </p>
@@ -214,7 +214,7 @@ const Landing: React.FC = () => {
             className="glass rounded-3xl p-8 border-white/20 shadow-drip backdrop-blur-xl"
           >
             <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-white mb-2">Platform Analytics</h2>
+              <h2 className="text-2xl font-bold text-foreground mb-2">Platform Analytics</h2>
               <p className="text-gray-400">Real-time metrics from the Drippy ecosystem</p>
             </div>
 
@@ -228,7 +228,7 @@ const Landing: React.FC = () => {
                   className="text-center p-6 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all duration-300 group"
                 >
                   <stat.icon className="w-8 h-8 mx-auto mb-3 text-primary-400 group-hover:text-primary-300 transition-colors" />
-                  <div className="text-2xl font-bold text-white mb-1">
+                  <div className="text-2xl font-bold text-foreground mb-1">
                     <CounterAnimation
                       target={stat.value}
                       suffix={stat.suffix}
@@ -245,7 +245,7 @@ const Landing: React.FC = () => {
               <div className="absolute inset-0 bg-gradient-to-r from-primary-500/20 to-accent-500/20 animate-pulse" />
               <div className="relative z-10 text-center">
                 <BarChart3 className="w-12 h-12 mx-auto mb-4 text-primary-400" />
-                <h3 className="text-lg font-semibold text-white mb-2">Live Analytics Dashboard</h3>
+                <h3 className="text-lg font-semibold text-foreground mb-2">Live Analytics Dashboard</h3>
                 <p className="text-gray-400 text-sm">Interactive charts and real-time data visualization</p>
               </div>
             </div>
@@ -260,9 +260,9 @@ const Landing: React.FC = () => {
           <div className="flex flex-col md:flex-row items-center justify-between">
             <div className="flex items-center space-x-3 mb-4 md:mb-0">
               <div className="w-8 h-8 rounded-full drip-gradient flex items-center justify-center">
-                <Droplets className="w-4 h-4 text-white" />
+                <Droplets className="w-4 h-4 text-foreground" />
               </div>
-              <span className="text-white font-semibold">Drippy</span>
+              <span className="text-foreground font-semibold">Drippy</span>
             </div>
             <div className="text-center text-gray-400">
               <p>© {new Date().getFullYear()} Drippy — Revolutionizing DeFi on XRPL</p>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import XamanPayloadModal from '../components/XamanPayloadModal'
+// import ContrastTest from '../components/ContrastTest' // Removed for production
 import { useXRPL } from '../contexts/XRPLContext'
 import { 
   Wallet, 
@@ -71,11 +72,11 @@ const Dashboard: React.FC = () => {
           <div className="w-16 h-16 drip-gradient rounded-full flex items-center justify-center mx-auto mb-4">
             <span className="text-2xl">💧</span>
           </div>
-          <h2 className="text-2xl font-bold text-white mb-2">Welcome to Drippy</h2>
-          <p className="text-gray-400 mb-6">
+          <h2 className="text-2xl font-bold text-card-foreground mb-2">Welcome to Drippy</h2>
+          <p className="text-muted-foreground mb-6">
             Connect your Xaman wallet to start earning rewards and managing your DRIPPY tokens.
           </p>
-          <button onClick={connectWallet} className="w-full px-6 py-3 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors">
+          <button onClick={connectWallet} className="w-full px-6 py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors">
             Connect Wallet
           </button>
         </motion.div>
@@ -85,11 +86,13 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="space-y-8">
+      {/* Theme system now fully integrated */}
+      
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white">Dashboard</h1>
-          <p className="text-gray-400 mt-1">
+          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+          <p className="text-muted-foreground mt-1">
             Welcome back! Here's your Drippy overview.
           </p>
         </div>
@@ -112,10 +115,10 @@ const Dashboard: React.FC = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
-              className="glass p-6 rounded-xl hover:shadow-drip transition-all duration-300"
+              className="card-elevated p-6 rounded-xl hover:shadow-drip transition-all duration-300"
             >
               <div className="flex items-center justify-between mb-4">
-                <div className={`p-2 rounded-lg bg-white/5`}>
+                <div className={`p-2 rounded-lg bg-muted`}>
                   <Icon className={`w-6 h-6 ${stat.color}`} />
                 </div>
                 <div className="flex items-center space-x-1 text-sm">
@@ -124,8 +127,8 @@ const Dashboard: React.FC = () => {
                 </div>
               </div>
               <div>
-                <p className="text-gray-400 text-sm mb-1">{stat.title}</p>
-                <p className="text-2xl font-bold text-white">{stat.value}</p>
+                <p className="text-muted-foreground text-sm mb-1">{stat.title}</p>
+                <p className="text-2xl font-bold text-card-foreground">{stat.value}</p>
               </div>
             </motion.div>
           )
@@ -140,23 +143,23 @@ const Dashboard: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="glass p-6 rounded-xl"
+            className="card-elevated p-6 rounded-xl"
           >
-            <h3 className="text-xl font-semibold text-white mb-6">Recent Transactions</h3>
+            <h3 className="text-xl font-semibold text-card-foreground mb-6">Recent Transactions</h3>
             <div className="space-y-4">
               {recentTransactions.map((tx) => (
-                <div key={tx.id} className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
+                <div key={tx.id} className="flex items-center justify-between p-4 bg-muted rounded-lg">
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-primary-500/20 rounded-full flex items-center justify-center">
-                      <Coins className="w-5 h-5 text-primary-400" />
+                    <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center">
+                      <Coins className="w-5 h-5 text-primary" />
                     </div>
                     <div>
-                      <p className="text-white font-medium">{tx.type}</p>
-                      <p className="text-gray-400 text-sm">{tx.time}</p>
+                      <p className="text-card-foreground font-medium">{tx.type}</p>
+                      <p className="text-muted-foreground text-sm">{tx.time}</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-white font-medium">{tx.amount}</p>
+                    <p className="text-card-foreground font-medium">{tx.amount}</p>
                     <p className="text-green-400 text-sm">{tx.status}</p>
                   </div>
                 </div>
@@ -171,21 +174,21 @@ const Dashboard: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
-            className="glass p-6 rounded-xl"
+            className="card-elevated p-6 rounded-xl"
           >
-            <h3 className="text-xl font-semibold text-white mb-6">Quick Actions</h3>
+            <h3 className="text-xl font-semibold text-card-foreground mb-6">Quick Actions</h3>
             <div className="space-y-4">
-              <button onClick={() => setClaimOpen(true)} className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors">
+              <button onClick={() => setClaimOpen(true)} className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors">
                 <Coins className="w-5 h-5" />
                 <span>Claim Rewards</span>
               </button>
-              <button className="w-full flex items-center justify-center space-x-2 px-4 py-3 glass text-gray-300 hover:text-white rounded-lg transition-colors">
+              <button className="w-full flex items-center justify-center space-x-2 px-4 py-3 glass text-muted-foreground hover:text-foreground rounded-lg transition-colors">
                 <TrendingUp className="w-5 h-5" />
                 <span>Stake XRP</span>
               </button>
               {!hasDrippyTrustline && (
               <button
-                className={`w-full flex items-center justify-center space-x-2 px-4 py-3 rounded-lg transition-colors ${signingTrust ? 'glass text-gray-500' : 'bg-white/10 hover:bg-white/20 text-white'}`}
+                className={`w-full flex items-center justify-center space-x-2 px-4 py-3 rounded-lg transition-colors ${signingTrust ? 'glass text-muted-foreground' : 'bg-muted hover:bg-muted/80 text-card-foreground'}`}
                 onClick={async () => {
                   if (signingTrust) return
                   setSigningTrust(true)

@@ -7,56 +7,98 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Drippy Brand Colors - Matching Logo Palette
+        // CSS Variable Integration
+        border: 'hsl(var(--border))',
+        input: 'hsl(var(--input))',
+        ring: 'hsl(var(--ring))',
+        background: 'hsl(var(--background))',
+        foreground: 'hsl(var(--foreground))',
         primary: {
-          50: '#e6ffff',
-          100: '#ccffff',
-          200: '#99ffff',
-          300: '#66ffff',
-          400: '#33ffff',
-          500: '#00d2ff', // Vibrant Cyan (logo main color)
-          600: '#00b8e6',
-          700: '#009fcc',
-          800: '#0085b3',
-          900: '#006b99',
+          DEFAULT: 'hsl(var(--primary))',
+          foreground: 'hsl(var(--primary-foreground))',
+        },
+        secondary: {
+          DEFAULT: 'hsl(var(--secondary))',
+          foreground: 'hsl(var(--secondary-foreground))',
+        },
+        destructive: {
+          DEFAULT: 'hsl(var(--destructive))',
+          foreground: 'hsl(var(--destructive-foreground))',
+        },
+        muted: {
+          DEFAULT: 'hsl(var(--muted))',
+          foreground: 'hsl(var(--muted-foreground))',
         },
         accent: {
-          50: '#fffef0',
-          100: '#fffde0',
-          200: '#fffac2',
-          300: '#fff7a3',
-          400: '#fff485',
-          500: '#ffd700', // Vibrant Gold (logo accent)
-          600: '#e6c200',
-          700: '#ccad00',
-          800: '#b39900',
-          900: '#998500',
+          DEFAULT: 'hsl(var(--accent))',
+          foreground: 'hsl(var(--accent-foreground))',
         },
-        dark: {
-          50: '#f1f5f9',
-          100: '#e2e8f0',
-          200: '#cbd5e1',
-          300: '#94a3b8',
-          400: '#64748b',
-          500: '#475569',
-          600: '#334155',
-          700: '#1e293b', // Deep Navy (logo outline)
-          800: '#0f172a',
-          900: '#020617',
+        popover: {
+          DEFAULT: 'hsl(var(--popover))',
+          foreground: 'hsl(var(--popover-foreground))',
         },
-        // Additional vibrant colors from logo
-        turquoise: {
-          50: '#f0fdff',
-          100: '#ccfbff',
-          200: '#99f6ff',
-          300: '#66f0ff',
-          400: '#33eaff',
-          500: '#1de9b6', // Bright turquoise highlight
-          600: '#00bfa5',
-          700: '#009688',
-          800: '#00796b',
-          900: '#004d40',
-        }
+        card: {
+          DEFAULT: 'hsl(var(--card))',
+          foreground: 'hsl(var(--card-foreground))',
+        },
+        
+        // DRIPPY Brand Colors - Dynamic with themes
+        'drippy-cyan': 'hsl(var(--drippy-cyan))',
+        'drippy-navy': 'hsl(var(--drippy-navy))',
+        'drippy-yellow': 'hsl(var(--drippy-yellow))',
+        'drippy-red': 'hsl(var(--drippy-red))',
+        
+        // Static Brand Colors for consistency
+        brand: {
+          cyan: {
+            50: '#e6ffff',
+            100: '#b3ffff',
+            200: '#80ffff',
+            300: '#4dffff',
+            400: '#1affff',
+            500: '#00e6e6', // Main logo cyan
+            600: '#00cccc',
+            700: '#00b3b3',
+            800: '#009999',
+            900: '#008080',
+          },
+          navy: {
+            50: '#f0f4f8',
+            100: '#d9e6f2',
+            200: '#b3ccdc',
+            300: '#8db3c6',
+            400: '#6799b0',
+            500: '#41809a',
+            600: '#1b6684',
+            700: '#164d6e', // Logo navy
+            800: '#113358',
+            900: '#0c1a42',
+          },
+          yellow: {
+            50: '#fffef0',
+            100: '#fffde0',
+            200: '#fffac2',
+            300: '#fff7a3',
+            400: '#fff485',
+            500: '#ffd700', // Logo yellow
+            600: '#e6c200',
+            700: '#ccad00',
+            800: '#b39900',
+            900: '#998500',
+          },
+          red: {
+            50: '#fff0f0',
+            100: '#ffe0e0',
+            200: '#ffc2c2',
+            300: '#ffa3a3',
+            400: '#ff8585',
+            500: '#ff6666', // Logo red
+            600: '#e60000',
+            700: '#cc0000',
+            800: '#b30000',
+            900: '#990000',
+          },
+        },
       },
       fontFamily: {
         sans: ['Inter', 'Poppins', 'system-ui', 'sans-serif'],
@@ -67,6 +109,9 @@ export default {
         'bounce-slow': 'bounce 2s infinite',
         'pulse-slow': 'pulse 3s infinite',
         'drip': 'drip 2s ease-in-out infinite',
+        'glow': 'glow 2s ease-in-out infinite alternate',
+        'float': 'float 3s ease-in-out infinite',
+        'theme-transition': 'themeTransition 0.3s ease-in-out',
       },
       keyframes: {
         fadeIn: {
@@ -81,13 +126,28 @@ export default {
           '0%, 100%': { transform: 'translateY(0) scale(1)' },
           '50%': { transform: 'translateY(-10px) scale(1.05)' },
         },
+        glow: {
+          '0%': { boxShadow: '0 0 5px hsl(var(--drippy-cyan) / 0.5)' },
+          '100%': { boxShadow: '0 0 20px hsl(var(--drippy-cyan) / 0.8)' },
+        },
+        float: {
+          '0%, 100%': { transform: 'translateY(0px)' },
+          '50%': { transform: 'translateY(-10px)' },
+        },
+        themeTransition: {
+          '0%': { opacity: '0.8' },
+          '100%': { opacity: '1' },
+        },
       },
       backdropBlur: {
         xs: '2px',
       },
       boxShadow: {
         'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
-        'drip': '0 4px 20px rgba(14, 165, 233, 0.3)',
+        'drip': '0 4px 20px hsl(var(--drippy-cyan) / 0.3)',
+        'drip-lg': '0 8px 40px hsl(var(--drippy-cyan) / 0.4)',
+        'glow': '0 0 20px hsl(var(--drippy-cyan) / 0.5)',
+        'glow-lg': '0 0 40px hsl(var(--drippy-cyan) / 0.6)',
       },
     },
   },

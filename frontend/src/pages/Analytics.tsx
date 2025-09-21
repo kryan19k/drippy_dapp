@@ -78,8 +78,8 @@ const Analytics: React.FC = () => {
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-white">Analytics</h1>
-        <p className="text-gray-400 mt-1">
+        <h1 className="text-3xl font-bold text-foreground">Analytics</h1>
+        <p className="text-muted-foreground mt-1">
           Track performance and market insights for the Drippy ecosystem.
         </p>
       </div>
@@ -94,10 +94,10 @@ const Analytics: React.FC = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
-              className="glass p-6 rounded-xl"
+              className="card-elevated p-6 rounded-xl"
             >
               <div className="flex items-center justify-between mb-4">
-                <div className="p-2 bg-white/5 rounded-lg">
+                <div className="p-2 bg-muted rounded-lg">
                   <Icon className={`w-6 h-6 ${stat.color}`} />
                 </div>
                 <div className="flex items-center space-x-1 text-sm">
@@ -112,8 +112,8 @@ const Analytics: React.FC = () => {
                 </div>
               </div>
               <div>
-                <p className="text-gray-400 text-sm mb-1">{stat.title}</p>
-                <p className="text-2xl font-bold text-white">{stat.value}</p>
+                <p className="text-muted-foreground text-sm mb-1">{stat.title}</p>
+                <p className="text-2xl font-bold text-card-foreground">{stat.value}</p>
               </div>
             </motion.div>
           )

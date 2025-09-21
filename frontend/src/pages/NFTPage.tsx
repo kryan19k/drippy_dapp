@@ -74,8 +74,8 @@ const NFTPage: React.FC = () => {
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-white">NFT Gallery</h1>
-        <p className="text-gray-400 mt-1">
+        <h1 className="text-3xl font-bold text-foreground">NFT Gallery</h1>
+        <p className="text-muted-foreground mt-1">
           Discover and trade Drippy NFTs with unique reward rates.
         </p>
       </div>
@@ -85,15 +85,15 @@ const NFTPage: React.FC = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="glass p-6 rounded-xl"
+          className="card-elevated p-6 rounded-xl"
         >
           <div className="flex items-center space-x-3">
-            <div className="p-2 bg-primary-500/20 rounded-lg">
-              <Image className="w-6 h-6 text-primary-400" />
+            <div className="p-2 bg-primary/20 rounded-lg">
+              <Image className="w-6 h-6 text-primary" />
             </div>
             <div>
-              <p className="text-gray-400 text-sm">Total NFTs</p>
-              <p className="text-2xl font-bold text-white">1,234</p>
+              <p className="text-muted-foreground text-sm">Total NFTs</p>
+              <p className="text-2xl font-bold text-card-foreground">1,234</p>
             </div>
           </div>
         </motion.div>
@@ -102,15 +102,15 @@ const NFTPage: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="glass p-6 rounded-xl"
+          className="card-elevated p-6 rounded-xl"
         >
           <div className="flex items-center space-x-3">
-            <div className="p-2 bg-accent-500/20 rounded-lg">
-              <TrendingUp className="w-6 h-6 text-accent-400" />
+            <div className="p-2 bg-accent/20 rounded-lg">
+              <TrendingUp className="w-6 h-6 text-accent" />
             </div>
             <div>
-              <p className="text-gray-400 text-sm">Floor Price</p>
-              <p className="text-2xl font-bold text-white">0.8 XRP</p>
+              <p className="text-muted-foreground text-sm">Floor Price</p>
+              <p className="text-2xl font-bold text-card-foreground">0.8 XRP</p>
             </div>
           </div>
         </motion.div>
@@ -119,15 +119,15 @@ const NFTPage: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="glass p-6 rounded-xl"
+          className="card-elevated p-6 rounded-xl"
         >
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-green-500/20 rounded-lg">
               <Star className="w-6 h-6 text-green-400" />
             </div>
             <div>
-              <p className="text-gray-400 text-sm">Volume 24h</p>
-              <p className="text-2xl font-bold text-white">45.2 XRP</p>
+              <p className="text-muted-foreground text-sm">Volume 24h</p>
+              <p className="text-2xl font-bold text-card-foreground">45.2 XRP</p>
             </div>
           </div>
         </motion.div>
@@ -136,15 +136,15 @@ const NFTPage: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="glass p-6 rounded-xl"
+          className="card-elevated p-6 rounded-xl"
         >
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-yellow-500/20 rounded-lg">
               <Clock className="w-6 h-6 text-yellow-400" />
             </div>
             <div>
-              <p className="text-gray-400 text-sm">Avg Rewards</p>
-              <p className="text-2xl font-bold text-white">8.5/day</p>
+              <p className="text-muted-foreground text-sm">Avg Rewards</p>
+              <p className="text-2xl font-bold text-card-foreground">8.5/day</p>
             </div>
           </div>
         </motion.div>
@@ -152,19 +152,19 @@ const NFTPage: React.FC = () => {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-4">
-        <button className="px-4 py-2 bg-primary-500 text-white rounded-lg">
+        <button className="px-4 py-2 bg-primary text-primary-foreground rounded-lg">
           All
         </button>
-        <button className="px-4 py-2 glass text-gray-300 hover:text-white rounded-lg">
+        <button className="px-4 py-2 glass text-muted-foreground hover:text-foreground rounded-lg">
           Legendary
         </button>
-        <button className="px-4 py-2 glass text-gray-300 hover:text-white rounded-lg">
+        <button className="px-4 py-2 glass text-muted-foreground hover:text-foreground rounded-lg">
           Epic
         </button>
-        <button className="px-4 py-2 glass text-gray-300 hover:text-white rounded-lg">
+        <button className="px-4 py-2 glass text-muted-foreground hover:text-foreground rounded-lg">
           Rare
         </button>
-        <button className="px-4 py-2 glass text-gray-300 hover:text-white rounded-lg">
+        <button className="px-4 py-2 glass text-muted-foreground hover:text-foreground rounded-lg">
           Common
         </button>
       </div>
@@ -177,9 +177,9 @@ const NFTPage: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
-            className="glass rounded-xl overflow-hidden hover:shadow-drip transition-all duration-300 group"
+            className="card-elevated rounded-xl overflow-hidden hover:shadow-drip transition-all duration-300 group"
           >
-            <div className="aspect-square bg-gradient-to-br from-primary-500/20 to-accent-500/20 relative overflow-hidden">
+            <div className="aspect-square bg-gradient-to-br from-primary/20 to-accent/20 relative overflow-hidden">
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="w-24 h-24 drip-gradient rounded-full flex items-center justify-center">
                   <span className="text-3xl">💧</span>
@@ -193,28 +193,28 @@ const NFTPage: React.FC = () => {
             </div>
             
             <div className="p-6">
-              <h3 className="text-xl font-semibold text-white mb-2">{nft.name}</h3>
+              <h3 className="text-xl font-semibold text-card-foreground mb-2">{nft.name}</h3>
               
               <div className="space-y-3 mb-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-400">Daily Rewards</span>
-                  <span className="text-primary-400 font-medium">{nft.rewards}</span>
+                  <span className="text-muted-foreground">Daily Rewards</span>
+                  <span className="text-primary font-medium">{nft.rewards}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-400">Price</span>
-                  <span className="text-white font-medium">{nft.price}</span>
+                  <span className="text-muted-foreground">Price</span>
+                  <span className="text-card-foreground font-medium">{nft.price}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-400">Last Sale</span>
+                  <span className="text-muted-foreground">Last Sale</span>
                   <span className="text-green-400 font-medium">{nft.lastSale}</span>
                 </div>
               </div>
               
               <div className="flex space-x-2">
-                <button className="flex-1 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors">
+                <button className="flex-1 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors">
                   Buy Now
                 </button>
-                <button className="px-4 py-2 glass text-gray-300 hover:text-white rounded-lg transition-colors">
+                <button className="px-4 py-2 glass text-muted-foreground hover:text-foreground rounded-lg transition-colors">
                   View
                 </button>
               </div>

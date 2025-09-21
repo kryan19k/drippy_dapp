@@ -123,12 +123,12 @@ const Governance: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white">Governance</h1>
-          <p className="text-gray-400 mt-1">
+          <h1 className="text-3xl font-bold text-foreground">Governance</h1>
+          <p className="text-muted-foreground mt-1">
             Participate in community decisions and shape the future of Drippy.
           </p>
         </div>
-        <button className="mt-4 sm:mt-0 flex items-center space-x-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors">
+        <button className="mt-4 sm:mt-0 flex items-center space-x-2 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors">
           <Plus className="w-4 h-4" />
           <span>Create Proposal</span>
         </button>
@@ -144,16 +144,16 @@ const Governance: React.FC = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
-              className="glass p-6 rounded-xl"
+              className="card-elevated p-6 rounded-xl"
             >
               <div className="flex items-center space-x-3">
-                <div className="p-2 bg-white/5 rounded-lg">
+                <div className="p-2 bg-muted rounded-lg">
                   <Icon className={`w-6 h-6 ${stat.color}`} />
                 </div>
                 <div>
-                  <p className="text-gray-400 text-sm">{stat.title}</p>
-                  <p className="text-2xl font-bold text-white">{stat.value}</p>
-                  <p className="text-xs text-gray-500">{stat.change}</p>
+                  <p className="text-muted-foreground text-sm">{stat.title}</p>
+                  <p className="text-2xl font-bold text-card-foreground">{stat.value}</p>
+                  <p className="text-xs text-muted-foreground">{stat.change}</p>
                 </div>
               </div>
             </motion.div>

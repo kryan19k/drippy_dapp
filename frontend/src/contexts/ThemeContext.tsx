@@ -1,41 +1,50 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 
-type Theme = 'dark' | 'light' | 'system'
+type Theme = 'light' | 'dark' | 'dim' | 'system'
 
 interface ThemeContextType {
   theme: Theme
   setTheme: (theme: Theme) => void
-  actualTheme: 'dark' | 'light'
+  actualTheme: 'light' | 'dark' | 'dim'
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>('system')
-  const [actualTheme, setActualTheme] = useState<'dark' | 'light'>('dark')
+  const [actualTheme, setActualTheme] = useState<'light' | 'dark' | 'dim'>('dark')
 
   useEffect(() => {
-    const stored = localStorage.getItem('drippy-theme') as Theme
-    if (stored) {
-      setTheme(stored)
+    try {
+      const stored = localStorage.getItem('drippy-theme') as Theme
+      if (stored && ['light', 'dark', 'dim', 'system'].includes(stored)) {
+        setTheme(stored)
+      }
+    } catch (error) {
+      console.warn('Failed to load theme from localStorage:', error)
     }
   }, [])
 
   useEffect(() => {
     const root = window.document.documentElement
-    root.classList.remove('light', 'dark')
+    root.classList.remove('light', 'dark', 'dim')
 
-    let resolvedTheme: 'dark' | 'light'
+    let resolvedTheme: 'light' | 'dark' | 'dim'
 
     if (theme === 'system') {
       resolvedTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
     } else {
-      resolvedTheme = theme
+      resolvedTheme = theme as 'light' | 'dark' | 'dim'
     }
 
     root.classList.add(resolvedTheme)
     setActualTheme(resolvedTheme)
-    localStorage.setItem('drippy-theme', theme)
+    
+    try {
+      localStorage.setItem('drippy-theme', theme)
+    } catch (error) {
+      console.warn('Failed to save theme to localStorage:', error)
+    }
   }, [theme])
 
   return (

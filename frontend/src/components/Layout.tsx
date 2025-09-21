@@ -12,13 +12,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const shouldUseSidebar = !isLandingPage
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900">
+    <div className="min-h-screen bg-background theme-transition">
+      {/* Background Pattern */}
+      <div className="fixed inset-0 bg-gradient-to-br from-primary/3 via-background to-secondary/5 pointer-events-none" />
+      
       {/* Navigation */}
       <Navigation layout={shouldUseSidebar ? 'sidebar' : 'top'} />
 
       {/* Main Content */}
       <main
-        className={`${
+        className={`relative z-10 theme-transition ${
           shouldUseSidebar
             ? 'lg:ml-72 lg:pt-0 pt-16' // Sidebar layout: left margin for sidebar, top padding for mobile header
             : '' // Top nav layout: no margins
