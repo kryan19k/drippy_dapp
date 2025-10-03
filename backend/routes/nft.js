@@ -16,14 +16,14 @@ router.get('/collection/stats', async (req, res) => {
   }
 })
 
-// Get all NFTs from the issuer
+// Get all NFTs from the issuer (Taxon 2)
 router.get('/collection/all', async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 50
+    const limit = parseInt(req.query.limit) || 100 // Increased default limit
     const offset = parseInt(req.query.offset) || 0
 
-    console.log('🔍 Fetching all NFTs from collection...')
-    const allNFTs = await nftService.getNFTsByIssuer()
+    console.log('🔍 Fetching all NFTs from collection (Taxon 2)...')
+    const allNFTs = await nftService.getNFTsByIssuer(nftService.issuerAccount, nftService.targetTaxon)
 
     // Apply pagination
     const paginatedNFTs = allNFTs.slice(offset, offset + limit)
@@ -33,7 +33,8 @@ router.get('/collection/all', async (req, res) => {
       total: allNFTs.length,
       limit,
       offset,
-      hasMore: offset + limit < allNFTs.length
+      hasMore: offset + limit < allNFTs.length,
+      taxon: nftService.targetTaxon
     })
   } catch (error) {
     console.error('Error getting collection NFTs:', error)
@@ -238,6 +239,17 @@ router.get('/issuer/info', async (req, res) => {
   } catch (error) {
     console.error('Error getting issuer info:', error)
     res.status(500).json({ error: 'Failed to get issuer information' })
+  }
+})
+
+// Clear cache endpoint for debugging
+router.post('/cache/clear', async (req, res) => {
+  try {
+    nftService.clearCache()
+    res.json({ message: 'NFT cache cleared successfully' })
+  } catch (error) {
+    console.error('Error clearing cache:', error)
+    res.status(500).json({ error: 'Failed to clear cache' })
   }
 })
 

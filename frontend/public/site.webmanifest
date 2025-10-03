@@ -1,0 +1,29 @@
+{
+  "name": "Drippy — DeFi Rewards on XRPL",
+  "short_name": "Drippy",
+  "description": "A revolutionary DeFi rewards platform built on the XRPL blockchain. Earn rewards, participate in liquidity mining, and engage with NFTs in the Xahau ecosystem.",
+  "icons": [
+    {
+      "src": "/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "theme_color": "#000000",
+  "background_color": "#000000",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "start_url": "/",
+  "scope": "/",
+  "categories": ["finance", "productivity", "utilities"],
+  "lang": "en",
+  "dir": "ltr",
+  "prefer_related_applications": false
+}

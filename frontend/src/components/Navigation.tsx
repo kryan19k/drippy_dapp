@@ -2,11 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Home,
   LayoutDashboard,
-  Image,
-  BarChart3,
-  Gavel,
   Wallet,
   Menu,
   X,
@@ -15,9 +11,21 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Shield
+  Shield,
+  TrendingUp,
+  Coins,
+  Image,
+  Vote,
+  ArrowRightLeft,
+  Droplets,
+  ChevronDown,
+  BarChart3,
+  ShoppingCart,
+  Link2
 } from 'lucide-react'
 import { useXRPL } from '../contexts/XRPLContext'
+import { useEVM } from '../contexts/EVMContext'
+import { useNetwork } from '../contexts/NetworkContext'
 import ThemePicker from './ThemePicker'
 import NetworkSwitcher from './NetworkSwitcher'
 
@@ -26,31 +34,136 @@ interface NavigationProps {
   className?: string
 }
 
-const navigation = [
-  { name: 'Home', href: '/', icon: Home, requiresAuth: false },
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, requiresAuth: false },
-  { name: 'NFT Gallery', href: '/nft', icon: Image, requiresAuth: false },
-  { name: 'Analytics', href: '/analytics', icon: BarChart3, requiresAuth: false },
-  { name: 'Governance', href: '/governance', icon: Gavel, requiresAuth: false },
-  { name: 'Admin', href: '/admin', icon: Shield, requiresAuth: true, adminOnly: true },
+interface NavGroup {
+  name: string
+  icon: React.ElementType
+  description: string
+  items: NavItem[]
+}
+
+interface NavItem {
+  name: string
+  href: string
+  icon: React.ElementType
+  description: string
+  requiresAuth?: boolean
+  adminOnly?: boolean
+  badge?: string
+}
+
+// XRPL Mainnet Navigation Groups
+const xrplNavGroups: NavGroup[] = [
+  {
+    name: 'Trade',
+    icon: TrendingUp,
+    description: 'Trading & Markets',
+    items: [
+      { name: 'AMM', href: '/amm', icon: TrendingUp, description: 'Automated Market Maker pools', requiresAuth: false },
+      { name: 'Buy DRIPPY', href: '/buy', icon: ShoppingCart, description: 'Purchase DRIPPY tokens', requiresAuth: false },
+      { name: 'Bridge', href: '/bridge', icon: Link2, description: 'Bridge tokens cross-chain', requiresAuth: false, badge: 'NEW' },
+    ]
+  },
+  {
+    name: 'Portfolio',
+    icon: Wallet,
+    description: 'Assets & Analytics',
+    items: [
+      { name: 'Wallet', href: '/wallet', icon: Wallet, description: 'View balances & send XRP', requiresAuth: true },
+      { name: 'Analytics', href: '/analytics', icon: BarChart3, description: 'Market data & insights', requiresAuth: false },
+    ]
+  }
+]
+
+// EVM Sidechain Navigation Groups
+const evmNavGroups: NavGroup[] = [
+  {
+    name: 'DeFi',
+    icon: ArrowRightLeft,
+    description: 'Decentralized Finance',
+    items: [
+      { name: 'Swap', href: '/swap', icon: ArrowRightLeft, description: 'Exchange tokens instantly', requiresAuth: false },
+      { name: 'Liquidity', href: '/liquidity', icon: Droplets, description: 'Add liquidity & earn fees', requiresAuth: false },
+      { name: 'Staking', href: '/staking', icon: Coins, description: 'Stake tokens & earn rewards', requiresAuth: true },
+      { name: 'Bridge', href: '/bridge', icon: Link2, description: 'Bridge tokens cross-chain', requiresAuth: false, badge: 'NEW' },
+    ]
+  },
+  {
+    name: 'Portfolio',
+    icon: Wallet,
+    description: 'Assets & Analytics',
+    items: [
+      { name: 'Wallet', href: '/wallet', icon: Wallet, description: 'Manage your assets', requiresAuth: true },
+      { name: 'NFTs', href: '/nft', icon: Image, description: 'Your NFT collection', requiresAuth: false },
+      { name: 'Analytics', href: '/analytics', icon: BarChart3, description: 'Market data & insights', requiresAuth: false },
+    ]
+  },
+  {
+    name: 'Governance',
+    icon: Vote,
+    description: 'Community Governance',
+    items: [
+      { name: 'Proposals', href: '/governance', icon: Vote, description: 'Vote on proposals', requiresAuth: false },
+      { name: 'Admin', href: '/admin', icon: Shield, description: 'Contract management', requiresAuth: true, adminOnly: true },
+    ]
+  }
 ]
 
 const Navigation: React.FC<NavigationProps> = ({ layout = 'top', className = '' }) => {
   const location = useLocation()
-  const { isConnected, account, connectWallet, disconnectWallet } = useXRPL()
+  const { networkType } = useNetwork()
+  
+  // XRPL wallet connection
+  const { 
+    isConnected: xrplConnected, 
+    account: xrplAccount, 
+    connectWallet: connectXRPL, 
+    disconnectWallet: disconnectXRPL 
+  } = useXRPL()
+  
+  // EVM wallet connection
+  const { 
+    isConnected: evmConnected, 
+    address: evmAddress, 
+    connectWallet: connectEVM, 
+    disconnectWallet: disconnectEVM,
+    isReady: evmReady
+  } = useEVM()
+  
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null)
+
+  // Select navigation based on network type
+  const navGroups = networkType === 'xrpl' ? xrplNavGroups : evmNavGroups
+  const isConnected = networkType === 'xrpl' ? xrplConnected : evmConnected
+  const account = networkType === 'xrpl' ? xrplAccount : evmAddress
+  const connectWallet = networkType === 'xrpl' ? connectXRPL : connectEVM
+  const disconnectWallet = networkType === 'xrpl' ? disconnectXRPL : disconnectEVM
 
   const isActive = (path: string) => location.pathname === path
+  const isGroupActive = (items: NavItem[]) => items.some(item => isActive(item.href))
 
   // Determine if we should use sidebar layout based on route
   const shouldUseSidebar = layout === 'sidebar' || (layout === 'top' && location.pathname !== '/')
 
-  // Close mobile menu on route change
+  // Close dropdowns on route change
   useEffect(() => {
+    setActiveDropdown(null)
     setIsMobileMenuOpen(false)
   }, [location.pathname])
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      if (!target.closest('[data-dropdown-container]')) {
+        setActiveDropdown(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const WalletSection = () => (
     <div className="flex items-center space-x-3">
@@ -73,14 +186,16 @@ const Navigation: React.FC<NavigationProps> = ({ layout = 'top', className = '' 
             {userMenuOpen && (
               <>
                 <div
-                  className="fixed inset-0 z-[9998]"
+                  className="fixed inset-0 z-[50]"
                   onClick={() => setUserMenuOpen(false)}
+                  style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
                 />
                 <motion.div
                   initial={{ opacity: 0, y: -10, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                  className="absolute right-0 top-12 z-[9999] w-64 glass rounded-xl border border-white/20 backdrop-blur-xl shadow-xl"
+                  className="fixed right-4 top-20 z-[60] w-64 glass rounded-xl border border-white/20 backdrop-blur-xl shadow-xl"
+                  style={{ position: 'fixed' }}
                 >
                   <div className="p-4">
                     <div className="flex items-center space-x-3 mb-4 pb-4 border-b border-white/10">
@@ -115,15 +230,31 @@ const Navigation: React.FC<NavigationProps> = ({ layout = 'top', className = '' 
           </AnimatePresence>
         </div>
       ) : (
-        <motion.button
-          onClick={connectWallet}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className="flex items-center space-x-2 px-4 py-2 drip-gradient hover:opacity-90 text-primary-foreground rounded-lg transition-all duration-300 shadow-drip"
-        >
-          <Wallet className="w-4 h-4" />
-          <span className="hidden sm:inline">Connect Wallet</span>
-        </motion.button>
+        <div className="relative group">
+          <motion.button
+            onClick={() => {
+              console.log('Connect button clicked', { networkType, evmReady, isConnected })
+              if (networkType === 'evm' && !evmReady) {
+                alert('Reown AppKit not initialized. Please check your VITE_REOWN_PROJECT_ID in .env')
+                return
+              }
+              connectWallet()
+            }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="flex items-center space-x-2 px-4 py-2 drip-gradient hover:opacity-90 text-primary-foreground rounded-lg transition-all duration-300 shadow-drip"
+          >
+            <Wallet className="w-4 h-4" />
+            <span className="hidden sm:inline">
+              {networkType === 'xrpl' ? 'Connect Xaman' : 'Connect Wallet'}
+            </span>
+          </motion.button>
+          {networkType === 'evm' && !evmReady && (
+            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-red-500/90 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+              ⚠️ Reown AppKit not initialized
+            </div>
+          )}
+        </div>
       )}
     </div>
   )
@@ -145,6 +276,135 @@ const Navigation: React.FC<NavigationProps> = ({ layout = 'top', className = '' 
     </Link>
   )
 
+  // Dropdown Menu Component
+  const DropdownMenu = ({ group }: { group: NavGroup }) => {
+    const isOpen = activeDropdown === group.name
+    const GroupIcon = group.icon
+    const hasActiveItem = isGroupActive(group.items)
+    const [buttonRef, setButtonRef] = useState<HTMLButtonElement | null>(null)
+    const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 })
+
+    useEffect(() => {
+      if (isOpen && buttonRef) {
+        const rect = buttonRef.getBoundingClientRect()
+        setDropdownPosition({
+          top: rect.bottom + 8,
+          left: rect.left
+        })
+      }
+    }, [isOpen, buttonRef])
+
+    return (
+      <div className="relative" data-dropdown-container>
+        <motion.button
+          ref={setButtonRef}
+          onClick={() => setActiveDropdown(isOpen ? null : group.name)}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-all duration-200 ${
+            hasActiveItem || isOpen
+              ? 'bg-primary-500/20 text-primary-400 border border-primary-500/30'
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+          }`}
+        >
+          <GroupIcon className="w-4 h-4" />
+          <span className="font-medium">{group.name}</span>
+          <ChevronDown className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        </motion.button>
+
+        <AnimatePresence>
+          {isOpen && (
+            <>
+              <div 
+                className="fixed inset-0 z-[50]" 
+                onClick={() => setActiveDropdown(null)}
+                style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
+              />
+              <motion.div
+                initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                transition={{ duration: 0.15 }}
+                className="fixed z-[60] w-80 glass rounded-xl border border-white/20 backdrop-blur-xl shadow-2xl overflow-hidden"
+                style={{ 
+                  position: 'fixed',
+                  top: `${dropdownPosition.top}px`,
+                  left: `${dropdownPosition.left}px`
+                }}
+              >
+                {/* Header */}
+                <div className="p-4 border-b border-white/10 bg-gradient-to-r from-primary/10 to-accent/10">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-primary/20 to-accent/20 rounded-lg flex items-center justify-center">
+                      <GroupIcon className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-foreground">{group.name}</h3>
+                      <p className="text-xs text-muted-foreground">{group.description}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Menu Items */}
+                <div className="p-2">
+                  {group.items
+                    .filter(item => !item.requiresAuth || isConnected)
+                      .map((item, itemIdx) => {
+                      const ItemIcon = item.icon
+                      return (
+                        <Link
+                          key={item.href}
+                          to={item.href}
+                          onClick={() => setActiveDropdown(null)}
+                        >
+                          <motion.div
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: itemIdx * 0.05 }}
+                            whileHover={{ scale: 1.02, x: 4 }}
+                            className={`flex items-start space-x-3 p-3 rounded-lg transition-all duration-200 ${
+                              isActive(item.href)
+                                ? 'bg-primary-500/20 border border-primary-500/30'
+                                : 'hover:bg-white/5'
+                            }`}
+                          >
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                              isActive(item.href)
+                                ? 'bg-primary-500/30'
+                                : 'bg-white/5'
+                            }`}>
+                              <ItemIcon className={`w-4 h-4 ${
+                                isActive(item.href) ? 'text-primary' : 'text-muted-foreground'
+                              }`} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className={`font-medium mb-0.5 ${
+                                isActive(item.href) ? 'text-primary' : 'text-foreground'
+                              }`}>
+                                {item.name}
+                                {item.badge && (
+                                  <span className="ml-2 px-1.5 py-0.5 text-[10px] bg-accent/20 text-accent rounded">
+                                    {item.badge}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground line-clamp-1">
+                                {item.description}
+                              </p>
+                            </div>
+                          </motion.div>
+                        </Link>
+                      )
+                    })}
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+      </div>
+    )
+  }
+
   if (shouldUseSidebar) {
     // Sidebar Layout
     return (
@@ -154,78 +414,122 @@ const Navigation: React.FC<NavigationProps> = ({ layout = 'top', className = '' 
           initial={{ x: -280 }}
           animate={{ x: 0 }}
           className={`hidden lg:flex flex-col fixed left-0 top-0 h-full z-[40] card-elevated border-r border-border backdrop-blur-xl transition-all duration-300 ${
-            isSidebarCollapsed ? 'w-20' : 'w-72'
+            isSidebarCollapsed ? 'w-16' : 'w-72'
           } ${className}`}
         >
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-border">
             <LogoSection />
-            <motion.button
-              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              className="p-2 rounded-lg glass border border-white/20 hover:border-white/40 transition-all"
-            >
-              {isSidebarCollapsed ? (
-                <ChevronRight className="w-4 h-4 text-foreground" />
-              ) : (
+            {!isSidebarCollapsed && (
+              <motion.button
+                onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                className="p-2 rounded-lg glass border border-white/20 hover:border-white/40 transition-all"
+              >
                 <ChevronLeft className="w-4 h-4 text-foreground" />
-              )}
-            </motion.button>
+              </motion.button>
+            )}
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-4 py-6">
-            <div className="space-y-2">
-              {navigation
-                .filter(item => !item.requiresAuth || isConnected)
-                .map((item) => {
-                  const Icon = item.icon
-                  return (
-                    <Link
-                      key={item.name}
-                      to={item.href}
-                      className={`flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
-                        isActive(item.href)
-                          ? 'bg-primary-500/20 text-primary-400 border border-primary-500/30'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                      }`}
-                    >
-                      <Icon className="w-5 h-5 flex-shrink-0" />
-                      {!isSidebarCollapsed && (
-                        <span className="font-medium">{item.name}</span>
-                      )}
-                    </Link>
-                  )
-                })}
-            </div>
+          <nav className="flex-1 px-4 py-6 overflow-y-auto">
+            {/* Dashboard - Always visible */}
+            <Link
+              to="/dashboard"
+              className={`flex items-center space-x-3 px-4 py-3 rounded-xl mb-2 transition-all duration-200 ${
+                isActive('/dashboard')
+                  ? 'bg-primary-500/20 text-primary-400 border border-primary-500/30'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+              }`}
+            >
+              <LayoutDashboard className="w-5 h-5 flex-shrink-0" />
+              {!isSidebarCollapsed && <span className="font-medium">Dashboard</span>}
+            </Link>
+
+            {/* Nav Groups */}
+            {!isSidebarCollapsed && (
+              <div className="space-y-6 mt-6">
+                {navGroups.map((group) => (
+                  <div key={group.name}>
+                    <div className="px-3 mb-2">
+                      <div className="flex items-center space-x-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        <group.icon className="w-3 h-3" />
+                        <span>{group.name}</span>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      {group.items
+                        .filter(item => !item.requiresAuth || isConnected)
+                        .map((item) => {
+                          const ItemIcon = item.icon
+                          return (
+                            <Link
+                              key={item.href}
+                              to={item.href}
+                              className={`flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                                isActive(item.href)
+                                  ? 'bg-primary-500/20 text-primary-400 border border-primary-500/30'
+                                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                              }`}
+                            >
+                              <ItemIcon className="w-4 h-4 flex-shrink-0" />
+                              <span className="font-medium">{item.name}</span>
+                              {item.badge && (
+                                <span className="ml-auto px-1.5 py-0.5 text-xs bg-accent/20 text-accent rounded">
+                                  {item.badge}
+                                </span>
+                              )}
+                            </Link>
+                          )
+                        })}
+                    </div>
+                  </div>
+                ))}
+
+                {/* Admin Link */}
+                {isConnected && (
+                  <Link
+                    to="/admin"
+                    className={`flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                      isActive('/admin')
+                        ? 'bg-primary-500/20 text-primary-400 border border-primary-500/30'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    }`}
+                  >
+                    <Shield className="w-4 h-4 flex-shrink-0" />
+                    <span className="font-medium">Admin</span>
+                  </Link>
+                )}
+              </div>
+            )}
           </nav>
 
           {/* Footer */}
           <div className="p-4 border-t border-white/10 space-y-3">
-            {!isSidebarCollapsed && (
+            {!isSidebarCollapsed ? (
               <>
                 <div className="flex items-center space-x-3">
-                  <ThemePicker />
-                  <NetworkSwitcher />
+                  <ThemePicker position="bottom" />
+                  <NetworkSwitcher position="bottom" />
                 </div>
                 <WalletSection />
               </>
-            )}
-            {isSidebarCollapsed && (
-              <div className="flex flex-col space-y-3 items-center">
-                <ThemePicker />
-                <NetworkSwitcher />
-                <div className="w-full">
-                  <WalletSection />
-                </div>
+            ) : (
+              <div className="flex flex-col items-center space-y-3">
+                <button
+                  onClick={() => setIsSidebarCollapsed(false)}
+                  className="p-2 rounded-lg glass border border-white/20 hover:border-white/40 transition-all"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
               </div>
             )}
           </div>
         </motion.aside>
 
         {/* Mobile Header */}
-        <header className="lg:hidden fixed top-0 left-0 right-0 z-[50] glass border-b border-white/10 backdrop-blur-xl">
+        <header className="lg:hidden fixed top-0 left-0 right-0 z-[40] glass border-b border-white/10 backdrop-blur-xl">
           <div className="flex items-center justify-between p-4">
             <LogoSection />
             <div className="flex items-center space-x-3">
@@ -257,38 +561,80 @@ const Navigation: React.FC<NavigationProps> = ({ layout = 'top', className = '' 
                 animate={{ x: 0 }}
                 exit={{ x: '-100%' }}
                 transition={{ type: 'spring', damping: 20 }}
-                className="lg:hidden fixed left-0 top-0 h-full w-80 glass backdrop-blur-xl border-r border-white/10 z-[9995]"
+                className="lg:hidden fixed left-0 top-0 h-full w-80 glass backdrop-blur-xl border-r border-white/10 z-[9995] overflow-y-auto"
               >
                 <div className="p-6">
                   <LogoSection />
                 </div>
 
-                <nav className="px-4">
-                  <div className="space-y-2">
-                    {navigation
-                      .filter(item => !item.requiresAuth || isConnected)
-                      .map((item) => {
-                        const Icon = item.icon
-                        return (
-                          <Link
-                            key={item.name}
-                            to={item.href}
-                            onClick={() => setIsMobileMenuOpen(false)}
-                            className={`flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 ${
-                              isActive(item.href)
-                                ? 'bg-primary-500/20 text-primary-400 border border-primary-500/30'
-                                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                            }`}
-                          >
-                            <Icon className="w-5 h-5" />
-                            <span className="font-medium">{item.name}</span>
-                          </Link>
-                        )
-                      })}
-                  </div>
+                <nav className="px-4 pb-20">
+                  {/* Dashboard */}
+                  <Link
+                    to="/dashboard"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={`flex items-center space-x-3 px-4 py-3 rounded-xl mb-4 transition-all duration-200 ${
+                      isActive('/dashboard')
+                        ? 'bg-primary-500/20 text-primary-400 border border-primary-500/30'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    }`}
+                  >
+                    <LayoutDashboard className="w-5 h-5" />
+                    <span className="font-medium">Dashboard</span>
+                  </Link>
+
+                  {/* Nav Groups */}
+                  {navGroups.map((group) => (
+                    <div key={group.name} className="mb-6">
+                      <div className="px-3 mb-2 flex items-center space-x-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        <group.icon className="w-3 h-3" />
+                        <span>{group.name}</span>
+                      </div>
+                      <div className="space-y-1">
+                        {group.items
+                          .filter(item => !item.requiresAuth || isConnected)
+                          .map((item) => {
+                            const ItemIcon = item.icon
+                            return (
+                              <Link
+                                key={item.href}
+                                to={item.href}
+                                onClick={() => setIsMobileMenuOpen(false)}
+                                className={`flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                                  isActive(item.href)
+                                    ? 'bg-primary-500/20 text-primary-400 border border-primary-500/30'
+                                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                                }`}
+                              >
+                                <ItemIcon className="w-4 h-4" />
+                                <div className="flex-1">
+                                  <div className="font-medium">{item.name}</div>
+                                  <div className="text-xs text-muted-foreground">{item.description}</div>
+                                </div>
+                              </Link>
+                            )
+                          })}
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Admin */}
+                  {isConnected && (
+                    <Link
+                      to="/admin"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                        isActive('/admin')
+                          ? 'bg-primary-500/20 text-primary-400 border border-primary-500/30'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                      }`}
+                    >
+                      <Shield className="w-4 h-4" />
+                      <span className="font-medium">Admin</span>
+                    </Link>
+                  )}
                 </nav>
 
-                <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-white/10">
+                <div className="fixed bottom-0 left-0 right-0 p-4 border-t border-white/10 glass backdrop-blur-xl">
                   <WalletSection />
                 </div>
               </motion.div>
@@ -301,37 +647,47 @@ const Navigation: React.FC<NavigationProps> = ({ layout = 'top', className = '' 
 
   // Top Navigation Layout (for landing page)
   return (
-    <header className={`glass border-b border-white/10 backdrop-blur-xl relative z-[50] ${className}`}>
+    <header className={`glass border-b border-white/10 backdrop-blur-xl relative z-[40] ${className}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <LogoSection />
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex space-x-8">
-            {navigation
-              .filter(item => !item.requiresAuth || isConnected)
-              .map((item) => {
-                const Icon = item.icon
-                return (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-all duration-200 ${
-                      isActive(item.href)
-                        ? 'bg-primary-500/20 text-primary-400 border border-primary-500/30'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                    <span>{item.name}</span>
-                  </Link>
-                )
-              })}
+          <nav className="hidden lg:flex items-center space-x-2">
+            <Link
+              to="/dashboard"
+              className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-all duration-200 ${
+                isActive('/dashboard')
+                  ? 'bg-primary-500/20 text-primary-400 border border-primary-500/30'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+              }`}
+            >
+              <LayoutDashboard className="w-4 h-4" />
+              <span className="font-medium">Dashboard</span>
+            </Link>
+
+            {navGroups.map((group) => (
+              <DropdownMenu key={group.name} group={group} />
+            ))}
+
+            {isConnected && (
+              <Link
+                to="/admin"
+                className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-all duration-200 ${
+                  isActive('/admin')
+                    ? 'bg-primary-500/20 text-primary-400 border border-primary-500/30'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                }`}
+              >
+                <Shield className="w-4 h-4" />
+                <span className="font-medium">Admin</span>
+              </Link>
+            )}
           </nav>
 
           {/* Right Section */}
-          <div className="flex items-center space-x-4">
-            <div className="hidden md:flex items-center space-x-3">
+          <div className="flex items-center space-x-3">
+            <div className="hidden lg:flex items-center space-x-3">
               <ThemePicker />
               <NetworkSwitcher />
             </div>
@@ -340,7 +696,7 @@ const Navigation: React.FC<NavigationProps> = ({ layout = 'top', className = '' 
             {/* Mobile menu button */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="md:hidden p-2 text-muted-foreground hover:text-foreground transition-colors"
+              className="lg:hidden p-2 text-muted-foreground hover:text-foreground transition-colors"
             >
               {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
@@ -355,36 +711,73 @@ const Navigation: React.FC<NavigationProps> = ({ layout = 'top', className = '' 
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden border-t border-white/10 backdrop-blur-xl relative z-[9999]"
+            className="lg:hidden border-t border-white/10 backdrop-blur-xl"
           >
-            <div className="px-4 py-4 space-y-4">
+            <div className="px-4 py-4 space-y-4 max-h-[calc(100vh-4rem)] overflow-y-auto">
               <div className="flex items-center space-x-3 mb-4">
-                <ThemePicker />
-                <NetworkSwitcher />
+                <ThemePicker position="bottom" />
+                <NetworkSwitcher position="bottom" />
               </div>
 
-              <div className="space-y-2">
-                {navigation
-                  .filter(item => !item.requiresAuth || isConnected)
-                  .map((item) => {
-                    const Icon = item.icon
-                    return (
-                      <Link
-                        key={item.name}
-                        to={item.href}
-                        onClick={() => setIsMobileMenuOpen(false)}
-                        className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-all duration-200 ${
-                          isActive(item.href)
-                            ? 'bg-primary-500/20 text-primary-400 border border-primary-500/30'
-                            : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                        }`}
-                      >
-                        <Icon className="w-5 h-5" />
-                        <span>{item.name}</span>
-                      </Link>
-                    )
-                  })}
-              </div>
+              {/* Dashboard */}
+              <Link
+                to="/dashboard"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`flex items-center space-x-3 px-3 py-3 rounded-lg transition-all duration-200 ${
+                  isActive('/dashboard')
+                    ? 'bg-primary-500/20 text-primary-400 border border-primary-500/30'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                }`}
+              >
+                <LayoutDashboard className="w-5 h-5" />
+                <span className="font-medium">Dashboard</span>
+              </Link>
+
+              {/* Nav Groups */}
+              {navGroups.map((group) => (
+                <div key={group.name} className="space-y-2">
+                  <div className="px-3 flex items-center space-x-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    <group.icon className="w-3 h-3" />
+                    <span>{group.name}</span>
+                  </div>
+                  {group.items
+                    .filter(item => !item.requiresAuth || isConnected)
+                    .map((item) => {
+                      const ItemIcon = item.icon
+                      return (
+                        <Link
+                          key={item.href}
+                          to={item.href}
+                          onClick={() => setIsMobileMenuOpen(false)}
+                          className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-all duration-200 ${
+                            isActive(item.href)
+                              ? 'bg-primary-500/20 text-primary-400 border border-primary-500/30'
+                              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                          }`}
+                        >
+                          <ItemIcon className="w-4 h-4" />
+                          <span className="text-sm">{item.name}</span>
+                        </Link>
+                      )
+                    })}
+                </div>
+              ))}
+
+              {/* Admin */}
+              {isConnected && (
+                <Link
+                  to="/admin"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`flex items-center space-x-3 px-3 py-3 rounded-lg transition-all duration-200 ${
+                    isActive('/admin')
+                      ? 'bg-primary-500/20 text-primary-400 border border-primary-500/30'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  }`}
+                >
+                  <Shield className="w-5 h-5" />
+                  <span className="font-medium">Admin</span>
+                </Link>
+              )}
             </div>
           </motion.div>
         )}

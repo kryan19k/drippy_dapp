@@ -16,7 +16,15 @@ class NFTService {
     this.client = null
     this.cache = new Map()
     this.issuerAccount = 'rwprJf1ZEU3foKSiwhDg5kj9zDWFtPgMqJ'
+    this.targetTaxon = 2 // The 589 NFTs are in Taxon 2
     this.mainnetWSS = process.env.XRPL_MAINNET_WSS || 'wss://xrplcluster.com'
+    this.bithompApiKey = process.env.BITHOMP_API_KEY
+    this.bithompBaseUrl = 'https://bithomp.com/api/v2'
+  }
+
+  clearCache() {
+    this.cache.clear()
+    console.log('🗑️ NFT cache cleared')
   }
 
   async connect() {
@@ -37,32 +45,95 @@ class NFTService {
   }
 
   /**
-   * Get all NFTs issued by the specified account
+   * Get all NFTs issued by the specified account using Bithomp API
    */
-  async getNFTsByIssuer(issuer = this.issuerAccount) {
-    await this.connect()
-
+  async getNFTsByIssuer(issuer = this.issuerAccount, taxon = this.targetTaxon) {
     try {
-      console.log(`🔍 Fetching NFTs from issuer: ${issuer}`)
+      console.log(`🔍 Fetching all NFTs from issuer: ${issuer} via Bithomp API`)
 
-      // Get all NFT tokens issued by this account
-      const response = await this.client.request({
-        command: 'account_nfts',
-        account: issuer,
-        ledger_index: 'validated'
-      })
+      if (!this.bithompApiKey) {
+        throw new Error('Bithomp API key not configured')
+      }
 
-      const nfts = response.result.account_nfts || []
-      console.log(`📦 Found ${nfts.length} NFTs from issuer`)
+      let allNFTs = []
+      let marker = null
+      let totalFetched = 0
 
-      // Process each NFT to get metadata
-      const processedNFTs = await Promise.all(
-        nfts.map(nft => this.processNFT(nft))
-      )
+      // Use pagination to get all NFTs from this issuer
+      do {
+        const url = `${this.bithompBaseUrl}/nfts?issuer=${issuer}&limit=100${marker ? `&marker=${marker}` : ''}`
+        console.log(`🌐 Fetching from: ${url}`)
 
-      return processedNFTs.filter(nft => nft !== null)
+        const response = await axios.get(url, {
+          headers: {
+            'x-bithomp-token': this.bithompApiKey,
+            'User-Agent': 'DRIPPY-NFT-Service/1.0'
+          },
+          timeout: 30000
+        }).catch(async (error) => {
+          if (error.response?.status === 429) {
+            const retryAfter = error.response.data?.error?.match(/retry in (\d+)s/)?.[1] || 5
+            console.log(`⏳ Rate limited, waiting ${retryAfter} seconds before retry...`)
+            await new Promise(resolve => setTimeout(resolve, retryAfter * 1000 + 1000)) // Add 1s buffer
+            return axios.get(url, {
+              headers: {
+                'x-bithomp-token': this.bithompApiKey,
+                'User-Agent': 'DRIPPY-NFT-Service/1.0'
+              },
+              timeout: 30000
+            })
+          }
+          throw error
+        })
+
+        const data = response.data
+        const nfts = data.nfts || []
+
+        // Filter by taxon if specified
+        const filteredNFTs = taxon !== null ?
+          nfts.filter(nft => nft.nftokenTaxon === taxon) :
+          nfts
+
+        allNFTs.push(...filteredNFTs)
+        totalFetched += nfts.length
+        marker = data.marker
+
+        console.log(`📦 Fetched ${nfts.length} NFTs (${filteredNFTs.length} matching taxon ${taxon}), total found: ${allNFTs.length}`)
+
+        // Add small delay between requests
+        if (marker) {
+          await new Promise(resolve => setTimeout(resolve, 100))
+        }
+
+      } while (marker && totalFetched < 1000) // Safety limit
+
+      console.log(`✅ Total NFTs found: ${allNFTs.length}`)
+
+      // Process each NFT to match our expected format
+      const processedNFTs = []
+      const batchSize = 20
+
+      for (let i = 0; i < allNFTs.length; i += batchSize) {
+        const batch = allNFTs.slice(i, i + batchSize)
+        console.log(`🔄 Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(allNFTs.length/batchSize)} (${batch.length} NFTs)`)
+
+        const batchResults = await Promise.all(
+          batch.map(nft => this.processBithompNFT(nft))
+        )
+
+        processedNFTs.push(...batchResults.filter(nft => nft !== null))
+
+        // Add small delay between batches
+        if (i + batchSize < allNFTs.length) {
+          await new Promise(resolve => setTimeout(resolve, 200))
+        }
+      }
+
+      console.log(`✅ Successfully processed ${processedNFTs.length} NFTs`)
+      return processedNFTs
+
     } catch (error) {
-      console.error('❌ Error fetching NFTs:', error)
+      console.error('❌ Error fetching NFTs from Bithomp:', error)
       return []
     }
   }
@@ -100,6 +171,67 @@ class NFTService {
     } catch (error) {
       console.error('❌ Error fetching user NFTs:', error)
       return []
+    }
+  }
+
+  /**
+   * Process Bithomp NFT data to match our expected format
+   */
+  async processBithompNFT(bithompNFT) {
+    try {
+      const tokenID = bithompNFT.nftokenID
+      const cached = this.cache.get(tokenID)
+
+      if (cached) {
+        return cached
+      }
+
+      // Extract metadata from Bithomp format
+      let metadata = {
+        name: bithompNFT.metadata?.name || `Drippy #${bithompNFT.nftSerial || 'Unknown'}`,
+        description: bithompNFT.metadata?.description || 'DRIPPY NFT from XRPL',
+        image: bithompNFT.metadata?.image || null,
+        attributes: bithompNFT.metadata?.attributes || []
+      }
+
+      // Convert IPFS image URL to HTTP gateway format
+      if (metadata.image && metadata.image.startsWith('ipfs://')) {
+        const imagePath = metadata.image.replace('ipfs://', '')
+        const imagePathParts = imagePath.split('/')
+        const encodedImageParts = imagePathParts.map(part => encodeURIComponent(part))
+        metadata.image = `https://ipfs.io/ipfs/${encodedImageParts.join('/')}`
+        console.log(`🖼️ Converted IPFS image URL: ${metadata.image}`)
+      }
+
+      // Calculate rarity and boost multiplier using our existing logic
+      const nftForRarity = {
+        nft_serial: bithompNFT.nftSerial || 0,
+        NFTokenID: tokenID
+      }
+      const rarity = this.calculateRarity(nftForRarity, metadata)
+      const boostMultiplier = this.calculateBoostMultiplier(rarity)
+
+      const processedNFT = {
+        tokenID,
+        issuer: bithompNFT.issuer || this.issuerAccount,
+        owner: bithompNFT.owner || 'Unknown',
+        uri: bithompNFT.uri || null,
+        metadata,
+        rarity,
+        boostMultiplier,
+        flags: bithompNFT.flags || {},
+        transferFee: bithompNFT.transferFee || 0,
+        sequence: bithompNFT.nftSerial || 0,
+        lastProcessed: new Date().toISOString()
+      }
+
+      // Cache the processed NFT
+      this.cache.set(tokenID, processedNFT)
+
+      return processedNFT
+    } catch (error) {
+      console.error(`❌ Error processing Bithomp NFT ${bithompNFT.nftokenID}:`, error)
+      return null
     }
   }
 
@@ -163,11 +295,18 @@ class NFTService {
       // Handle IPFS URIs
       let fetchURL = decodedURI
       if (decodedURI.startsWith('ipfs://')) {
-        fetchURL = decodedURI.replace('ipfs://', 'https://ipfs.io/ipfs/')
+        // Replace ipfs:// with https://ipfs.io/ipfs/ and properly encode the path
+        const ipfsPath = decodedURI.replace('ipfs://', '')
+        // Split on / and encode each part separately to preserve directory structure
+        const pathParts = ipfsPath.split('/')
+        const encodedParts = pathParts.map(part => encodeURIComponent(part))
+        fetchURL = `https://ipfs.io/ipfs/${encodedParts.join('/')}`
       }
 
+      console.log(`🔗 Encoded fetch URL: ${fetchURL}`)
+
       const response = await axios.get(fetchURL, {
-        timeout: 5000,
+        timeout: 10000,
         headers: {
           'User-Agent': 'DRIPPY-NFT-Service/1.0'
         }
@@ -175,6 +314,15 @@ class NFTService {
 
       const metadata = response.data
       console.log(`✅ Fetched metadata for: ${metadata.name || 'Unnamed NFT'}`)
+
+      // Process image URLs to convert IPFS to HTTP
+      if (metadata.image && metadata.image.startsWith('ipfs://')) {
+        const imagePath = metadata.image.replace('ipfs://', '')
+        const imagePathParts = imagePath.split('/')
+        const encodedImageParts = imagePathParts.map(part => encodeURIComponent(part))
+        metadata.image = `https://ipfs.io/ipfs/${encodedImageParts.join('/')}`
+        console.log(`🖼️ Converted image URL: ${metadata.image}`)
+      }
 
       return metadata
     } catch (error) {
@@ -260,13 +408,14 @@ class NFTService {
    * Get NFT collection statistics
    */
   async getCollectionStats() {
-    const nfts = await this.getNFTsByIssuer()
+    const nfts = await this.getNFTsByIssuer(this.issuerAccount, this.targetTaxon)
 
     const stats = {
       totalSupply: nfts.length,
       rarityDistribution: {},
       averageBoost: 0,
       topNFTs: [],
+      taxon: this.targetTaxon,
       lastUpdated: new Date().toISOString()
     }
 
@@ -314,17 +463,30 @@ class NFTService {
    * Get detailed NFT information by Token ID
    */
   async getNFTDetails(tokenID) {
-    await this.connect()
-
     try {
-      const response = await this.client.request({
-        command: 'nft_info',
-        nft_id: tokenID,
-        ledger_index: 'validated'
-      })
+      console.log(`🔍 Looking up NFT details for: ${tokenID}`)
 
-      const nft = response.result
-      return await this.processNFT(nft)
+      // First check if it's in cache
+      const cached = this.cache.get(tokenID)
+      if (cached) {
+        console.log(`✅ Found NFT in cache: ${cached.metadata?.name || 'Unknown'}`)
+        return cached
+      }
+
+      // If not in cache, fetch all NFTs and look for this specific one
+      console.log(`🔄 NFT not in cache, fetching collection data...`)
+      const allNFTs = await this.getNFTsByIssuer(this.issuerAccount, this.targetTaxon)
+
+      // Find the specific NFT by tokenID
+      const foundNFT = allNFTs.find(nft => nft.tokenID === tokenID)
+
+      if (foundNFT) {
+        console.log(`✅ Found NFT in collection: ${foundNFT.metadata?.name || 'Unknown'}`)
+        return foundNFT
+      }
+
+      console.log(`❌ NFT ${tokenID} not found in collection`)
+      return null
     } catch (error) {
       console.error(`❌ Error fetching NFT details for ${tokenID}:`, error)
       return null

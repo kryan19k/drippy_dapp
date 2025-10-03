@@ -26,3 +26,6 @@ TESTNET_ACCOUNT_SEEDS.txt
 *mainnet*.txt
 *account*.txt
 *seed*.txt
+
+docs.xrplevm.org/
+axelar-contract-deployments/

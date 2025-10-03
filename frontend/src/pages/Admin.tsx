@@ -1,183 +1,431 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { motion } from 'framer-motion'
-import { useXRPL } from '../contexts/XRPLContext'
 import {
+  Shield,
   Settings,
-  Database,
-  Activity,
   Users,
-  DollarSign,
   AlertTriangle,
+  Zap,
+  Lock,
+  Unlock,
+  TrendingUp,
+  DollarSign,
+  Ban,
   CheckCircle,
   XCircle,
-  RefreshCw,
-  Upload,
-  Terminal,
-  Eye,
-  Edit3,
-  Plus
+  Crown,
+  RefreshCw
 } from 'lucide-react'
+import { useAdmin } from '../hooks/useAdmin'
+import { useToken } from '../hooks/useToken'
+import { useFeeRouter } from '../hooks/useFeeRouter'
+import { useEVM } from '../contexts/EVMContext'
+import { useNetwork } from '../contexts/NetworkContext'
+import toast from 'react-hot-toast'
 
 const Admin: React.FC = () => {
-  const { isConnected, account } = useXRPL() as any
-  const [activeTab, setActiveTab] = useState('overview')
-  const [loading, setLoading] = useState(false)
-  const [systemStatus, setSystemStatus] = useState<any>(null)
-  const [hookData, setHookData] = useState<any>(null)
-  const [deploymentInfo, setDeploymentInfo] = useState<any>(null)
+  const { networkType, currentNetwork, switchToEVM } = useNetwork()
+  const { isConnected, connectWallet, switchChain, address } = useEVM()
+  const { tokenInfo, refetchBalance, balance, transfer, isTransferring } = useToken()
+  const { stats } = useFeeRouter()
+  const admin = useAdmin()
 
-  const tabs = [
-    { id: 'overview', label: 'Overview', icon: Activity },
-    { id: 'hooks', label: 'Hook Management', icon: Settings },
-    { id: 'accruals', label: 'Accrual Manager', icon: Database },
-    { id: 'pools', label: 'Pool Manager', icon: DollarSign },
-    { id: 'transactions', label: 'Transactions', icon: Users },
-    { id: 'system', label: 'System Logs', icon: Terminal }
-  ]
-
-  const fetchRealData = async () => {
-    setLoading(true)
+  // Handle network switch to testnet
+  const handleSwitchToTestnet = async () => {
     try {
-      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8787'
-
-      // Fetch all data in parallel
-      const [systemRes, deployRes, routerRes, claimRes, utilityRes] = await Promise.allSettled([
-        fetch(`${baseUrl}/admin/system/health`, {
-          headers: { 'x-admin-account': account || 'rpExedMjjNGVV4SHCh2HWSmia4zZd3mZK2' }
-        }),
-        fetch(`${baseUrl}/api/hooks/deployment/info`),
-        fetch(`${baseUrl}/api/hooks/router/stats`),
-        fetch(`${baseUrl}/api/hooks/claim/stats`),
-        fetch(`${baseUrl}/api/hooks/utility/stats`)
-      ])
-
-      // Parse system health
-      if (systemRes.status === 'fulfilled' && systemRes.value.ok) {
-        const health = await systemRes.value.json()
-        setSystemStatus(health)
+      // First switch in MetaMask
+      if (switchChain) {
+        await switchChain(1449000) // XRPL EVM Testnet
       }
-
-      // Parse deployment info
-      if (deployRes.status === 'fulfilled' && deployRes.value.ok) {
-        const deploy = await deployRes.value.json()
-        setDeploymentInfo(deploy)
+      // Then update app context
+      switchToEVM('testnet')
+      toast.success('Switched to XRPL EVM Testnet')
+    } catch (error: any) {
+      console.error('Network switch error:', error)
+      // User might need to add the network manually
+      if (error.code === 4902) {
+        toast.error('Please add XRPL EVM Testnet to MetaMask manually')
+      } else {
+        toast.error(error.message || 'Failed to switch network')
       }
-
-      // Combine hook stats
-      const hookStats: any = {}
-
-      if (routerRes.status === 'fulfilled' && routerRes.value.ok) {
-        hookStats.router = await routerRes.value.json()
-      }
-
-      if (claimRes.status === 'fulfilled' && claimRes.value.ok) {
-        hookStats.claim = await claimRes.value.json()
-      }
-
-      if (utilityRes.status === 'fulfilled' && utilityRes.value.ok) {
-        hookStats.utility = await utilityRes.value.json()
-      }
-
-      // Transform to old format for compatibility
-      setHookData({
-        claimHook: {
-          account: hookStats.claim?.account || 'Not deployed',
-          deployed: !!hookStats.claim?.account,
-          version: deploymentInfo?.hooks?.claim?.deployed ? '1.0.0' : 'pending',
-          lastActivity: hookStats.claim?.account ? '2 minutes ago' : 'Not deployed',
-          state: {
-            totalAccruals: (hookStats.claim?.totalClaimed || 0).toString(),
-            pendingClaims: '0',
-            activeUsers: hookStats.claim?.totalUsers || 0
-          }
-        },
-        feeRouterHook: {
-          account: hookStats.router?.account || 'Not deployed',
-          deployed: !!hookStats.router?.account,
-          version: deploymentInfo?.hooks?.router?.deployed ? '1.0.0' : 'pending',
-          lastActivity: hookStats.router?.lastDistribution || 'Not active',
-          state: {
-            totalFees: (hookStats.router?.totalDistributed || 0).toString(),
-            routedToday: '0.00',
-            allocation: { nft: 40, holders: 30, treasury: 20, amm: 10 }
-          }
-        }
-      })
-
-    } catch (error) {
-      console.error('Failed to fetch real data:', error)
-    } finally {
-      setLoading(false)
     }
   }
 
-  const refreshData = fetchRealData
+  // Form states
+  const [activeTab, setActiveTab] = useState<'overview' | 'token' | 'fees' | 'access' | 'emergency' | 'distribute'>('overview')
+  const [normalTax, setNormalTax] = useState('5')
+  const [antiSnipeTax, setAntiSnipeTax] = useState('50')
+  const [maxTx, setMaxTx] = useState('20000000')
+  const [maxWallet, setMaxWallet] = useState('40000000')
+  const [addressInput, setAddressInput] = useState('')
+  const [pairAddress, setPairAddress] = useState('')
+  const [nftFee, setNftFee] = useState('20')
+  const [tokenFee, setTokenFee] = useState('40')
+  const [treasuryFee, setTreasuryFee] = useState('20')
+  const [ammFee, setAmmFee] = useState('20')
+  const [minDistribution, setMinDistribution] = useState('100')
+  const [roleAddress, setRoleAddress] = useState('')
+  const [selectedRole, setSelectedRole] = useState(admin.roles.OPERATOR_ROLE)
+  
+  // Distribution states
+  const [singleRecipient, setSingleRecipient] = useState('')
+  const [singleAmount, setSingleAmount] = useState('')
+  const [batchRecipients, setBatchRecipients] = useState('')
+  const [batchAmounts, setBatchAmounts] = useState('')
 
-  useEffect(() => {
-    if (isConnected) {
-      fetchRealData()
-      // Refresh every 30 seconds
-      const interval = setInterval(fetchRealData, 30000)
-      return () => clearInterval(interval)
-    }
-  }, [isConnected])
-
+  // Not connected
   if (!isConnected) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+      <div className="flex flex-col items-center justify-center min-h-[70vh] text-center px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="glass p-8 rounded-2xl max-w-md"
+          className="glass p-12 rounded-3xl max-w-md w-full border border-white/10"
         >
-          <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-            <AlertTriangle className="w-8 h-8 text-red-400" />
+          <div className="w-20 h-20 mx-auto mb-6 rounded-2xl flex items-center justify-center bg-gradient-to-br from-red-500/20 to-orange-500/20">
+            <Shield className="w-10 h-10 text-red-400" />
           </div>
-          <h2 className="text-2xl font-bold text-card-foreground mb-2">Admin Access Required</h2>
-          <p className="text-muted-foreground mb-6">
-            Please connect your admin wallet to access the Drippy administration panel.
+          <h2 className="text-3xl font-bold text-foreground mb-3">
+            Admin Access Required
+          </h2>
+          <p className="text-muted-foreground mb-8">
+            Connect your wallet to access admin controls
+          </p>
+          <button 
+            onClick={connectWallet}
+            className="w-full px-6 py-4 rounded-xl font-bold text-white bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 transition-all shadow-lg"
+          >
+            Connect Wallet
+          </button>
+        </motion.div>
+      </div>
+    )
+  }
+
+  // Wrong network
+  if (networkType !== 'evm') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[70vh] text-center px-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass p-12 rounded-3xl max-w-md w-full border border-yellow-500/30"
+        >
+          <AlertTriangle className="w-16 h-16 text-yellow-400 mx-auto mb-6" />
+          <h2 className="text-2xl font-bold text-foreground mb-3">
+            Wrong Network
+          </h2>
+          <p className="text-muted-foreground">
+            Admin panel is only available on XRPL EVM Sidechain. Please switch networks.
           </p>
         </motion.div>
       </div>
     )
   }
 
+  // Wrong chain (Mainnet instead of Testnet)
+  if (!admin.isCorrectChain) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[70vh] text-center px-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass p-12 rounded-3xl max-w-md w-full border border-orange-500/30"
+        >
+          <div className="w-20 h-20 mx-auto mb-6 rounded-2xl flex items-center justify-center bg-gradient-to-br from-orange-500/20 to-yellow-500/20">
+            <AlertTriangle className="w-10 h-10 text-orange-400" />
+          </div>
+          <h2 className="text-3xl font-bold text-foreground mb-3">
+            Wrong Network Detected
+          </h2>
+          <p className="text-muted-foreground mb-4">
+            Contracts are deployed on <strong className="text-yellow-400">XRPL EVM Testnet</strong>
+          </p>
+          <div className="bg-black/30 rounded-lg p-4 mb-6 text-left text-sm font-mono">
+            <div className="flex justify-between mb-2">
+              <span className="text-gray-400">Current Chain:</span>
+              <span className="text-red-400">{admin.currentChainId} (0x{admin.currentChainId?.toString(16)})</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Required Chain:</span>
+              <span className="text-green-400">{admin.expectedChainId} (0x{admin.expectedChainId.toString(16)})</span>
+            </div>
+          </div>
+          <p className="text-muted-foreground text-sm mb-6">
+            Please switch to <strong className="text-yellow-400">Testnet</strong> to access the admin panel
+          </p>
+          <button 
+            onClick={handleSwitchToTestnet}
+            className="w-full px-6 py-4 rounded-xl font-bold text-white bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 transition-all shadow-lg mb-4"
+          >
+            Switch to Testnet
+          </button>
+          <div className="flex flex-col space-y-2">
+            <div className="text-xs text-gray-400 flex items-center justify-center space-x-2">
+              <Zap className="w-3 h-3" />
+              <span>Or use the globe icon (🌐) in the navigation to switch manually</span>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    )
+  }
+
+  // No admin role
+  if (!admin.hasAnyRole) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[70vh] text-center px-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass p-12 rounded-3xl max-w-md w-full border border-red-500/30"
+        >
+          <Ban className="w-16 h-16 text-red-400 mx-auto mb-6" />
+          <h2 className="text-2xl font-bold text-foreground mb-3">
+            Access Denied
+          </h2>
+          <p className="text-muted-foreground mb-4">
+            You don't have admin privileges for this contract.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Required roles: Admin, Operator, or Fee Manager
+          </p>
+        </motion.div>
+      </div>
+    )
+  }
+
+  // Helper functions
+  const handleAddToWhitelist = async () => {
+    if (!addressInput) {
+      toast.error('Please enter an address')
+      return
+    }
+    const addresses = addressInput.split(',').map(a => a.trim() as `0x${string}`)
+    await admin.addToWhitelist(addresses)
+    setAddressInput('')
+  }
+
+  const handleBlacklist = async () => {
+    if (!addressInput) {
+      toast.error('Please enter an address')
+      return
+    }
+    const addresses = addressInput.split(',').map(a => a.trim() as `0x${string}`)
+    await admin.blacklistAddresses(addresses)
+    setAddressInput('')
+  }
+
+  const handleUpdateTax = async () => {
+    await admin.updateTaxRates(parseFloat(normalTax), parseFloat(antiSnipeTax))
+  }
+
+  const handleUpdateLimits = async () => {
+    await admin.updateLimits(maxTx, maxWallet)
+  }
+
+  const handleUpdateFees = async () => {
+    const total = parseFloat(nftFee) + parseFloat(tokenFee) + parseFloat(treasuryFee) + parseFloat(ammFee)
+    if (total !== 100) {
+      toast.error('Fees must total 100%')
+      return
+    }
+    await admin.updateFeeConfig(
+      parseFloat(nftFee),
+      parseFloat(tokenFee),
+      parseFloat(treasuryFee),
+      parseFloat(ammFee)
+    )
+  }
+
+  const handleGrantRole = async () => {
+    if (!roleAddress) {
+      toast.error('Please enter an address')
+      return
+    }
+    await admin.grantRole(selectedRole, roleAddress as `0x${string}`)
+    setRoleAddress('')
+  }
+
+  const tabs = [
+    { id: 'overview', label: 'Overview', icon: TrendingUp },
+    { id: 'distribute', label: 'Distribute Tokens', icon: Zap },
+    { id: 'token', label: 'Token Config', icon: Settings },
+    { id: 'fees', label: 'Fee Management', icon: DollarSign },
+    { id: 'access', label: 'Access Control', icon: Users },
+    { id: 'emergency', label: 'Emergency', icon: AlertTriangle },
+  ] as const
+
+  // Handle single transfer
+  const handleSingleTransfer = async () => {
+    if (!singleRecipient || !singleAmount) {
+      toast.error('Please fill in all fields')
+      return
+    }
+    
+    // Check balance
+    const currentBalance = parseFloat(balance || '0')
+    const amountToSend = parseFloat(singleAmount)
+    
+    if (amountToSend > currentBalance) {
+      toast.error(`Insufficient balance! You have ${currentBalance.toLocaleString()} DRIPPY but trying to send ${amountToSend.toLocaleString()} DRIPPY`)
+      return
+    }
+    
+    if (amountToSend <= 0) {
+      toast.error('Amount must be greater than 0')
+      return
+    }
+    
+    const success = await transfer(singleRecipient as `0x${string}`, singleAmount)
+    if (success) {
+      setSingleRecipient('')
+      setSingleAmount('')
+      await refetchBalance()
+    }
+  }
+
+  // Handle batch transfer
+  const handleBatchTransfer = async () => {
+    const recipients = batchRecipients.split('\n').filter(r => r.trim())
+    const amounts = batchAmounts.split('\n').filter(a => a.trim())
+    
+    if (recipients.length === 0 || amounts.length === 0) {
+      toast.error('Please provide recipients and amounts')
+      return
+    }
+    
+    if (recipients.length !== amounts.length) {
+      toast.error('Number of recipients must match number of amounts')
+      return
+    }
+    
+    // Check total amount vs balance
+    const currentBalance = parseFloat(balance || '0')
+    const totalAmount = amounts.reduce((sum, val) => sum + parseFloat(val || '0'), 0)
+    
+    if (totalAmount > currentBalance) {
+      toast.error(`Insufficient balance! Total to send: ${totalAmount.toLocaleString()} DRIPPY, Your balance: ${currentBalance.toLocaleString()} DRIPPY`)
+      return
+    }
+    
+    toast('Batch transfers require multiple transactions. Please confirm each one.', {
+      icon: '⚡',
+      duration: 4000
+    })
+    
+    for (let i = 0; i < recipients.length; i++) {
+      const recipient = recipients[i].trim()
+      const amount = amounts[i].trim()
+      
+      if (recipient && amount) {
+        await transfer(recipient as `0x${string}`, amount)
+        // Small delay between transactions
+        await new Promise(resolve => setTimeout(resolve, 2000))
+      }
+    }
+    
+    setBatchRecipients('')
+    setBatchAmounts('')
+    await refetchBalance()
+  }
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white">Admin Dashboard</h1>
-          <p className="text-gray-400 mt-1">
-            Manage Drippy hooks, pools, and system configuration
+          <h1 className="text-3xl font-bold text-foreground flex items-center space-x-3">
+            <Shield className="w-8 h-8 text-red-400" />
+            <span>Admin Dashboard</span>
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            {currentNetwork.displayName} • Manage DRIPPY Ecosystem
           </p>
         </div>
-        <button
-          onClick={refreshData}
-          disabled={loading}
-          className="mt-4 sm:mt-0 flex items-center space-x-2 px-4 py-2 glass text-gray-300 hover:text-white rounded-lg transition-colors disabled:opacity-50"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          <span>Refresh</span>
-        </button>
+        <div className="mt-4 sm:mt-0 flex items-center space-x-3">
+          {admin.isDefaultAdmin && (
+            <span className="px-3 py-1.5 bg-red-500/20 text-red-400 rounded-lg text-sm font-semibold flex items-center space-x-1">
+              <Crown className="w-4 h-4" />
+              <span>Owner</span>
+            </span>
+          )}
+          {admin.isOperator && (
+            <span className="px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded-lg text-sm font-semibold">
+              Operator
+            </span>
+          )}
+          {admin.isFeeManager && (
+            <span className="px-3 py-1.5 bg-green-500/20 text-green-400 rounded-lg text-sm font-semibold">
+              Fee Manager
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Status Bar */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className={`card-elevated p-4 rounded-xl border ${admin.isPaused ? 'border-red-500/50 bg-red-500/5' : 'border-green-500/30 bg-green-500/5'}`}>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Token Status</p>
+              <p className={`text-lg font-bold ${admin.isPaused ? 'text-red-400' : 'text-green-400'}`}>
+                {admin.isPaused ? 'Paused' : 'Active'}
+              </p>
+            </div>
+            {admin.isPaused ? <Lock className="w-6 h-6 text-red-400" /> : <Unlock className="w-6 h-6 text-green-400" />}
+          </div>
+        </div>
+
+        <div className="card-elevated p-4 rounded-xl border border-white/5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Anti-Snipe</p>
+              <p className={`text-lg font-bold ${tokenInfo?.antiSnipeActive ? 'text-yellow-400' : 'text-muted-foreground'}`}>
+                {tokenInfo?.antiSnipeActive ? 'Active' : 'Inactive'}
+              </p>
+            </div>
+            <Shield className={`w-6 h-6 ${tokenInfo?.antiSnipeActive ? 'text-yellow-400' : 'text-muted-foreground'}`} />
+          </div>
+        </div>
+
+        <div className="card-elevated p-4 rounded-xl border border-white/5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Tax Rate</p>
+              <p className="text-lg font-bold text-foreground">{tokenInfo?.normalTax || 5}%</p>
+            </div>
+            <DollarSign className="w-6 h-6 text-cyan-400" />
+          </div>
+        </div>
+
+        <div className="card-elevated p-4 rounded-xl border border-white/5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Distributions</p>
+              <p className="text-lg font-bold text-foreground">{stats?.distributionCount || 0}</p>
+            </div>
+            <RefreshCw className="w-6 h-6 text-purple-400" />
+          </div>
+        </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex flex-wrap gap-2 bg-white/5 p-2 rounded-xl">
+      <div className="flex space-x-2 overflow-x-auto">
         {tabs.map((tab) => {
           const Icon = tab.icon
           return (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all ${
+              className={`flex items-center space-x-2 px-4 py-2 rounded-xl font-semibold whitespace-nowrap transition-all ${
                 activeTab === tab.id
-                  ? 'bg-primary-500 text-white shadow-lg'
-                  : 'text-gray-400 hover:text-white hover:bg-white/5'
+                  ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white'
+                  : 'glass text-muted-foreground hover:text-foreground'
               }`}
             >
               <Icon className="w-4 h-4" />
-              <span className="hidden sm:inline">{tab.label}</span>
+              <span>{tab.label}</span>
             </button>
           )
         })}
@@ -188,601 +436,720 @@ const Admin: React.FC = () => {
         key={activeTab}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
+        className="card-elevated p-6 rounded-2xl border border-white/5"
       >
-        {activeTab === 'overview' && <OverviewTab systemStatus={systemStatus} hookData={hookData} />}
-        {activeTab === 'hooks' && <HookManagementTab hookData={hookData} setHookData={setHookData} />}
-        {activeTab === 'accruals' && <AccrualManagerTab />}
-        {activeTab === 'pools' && <PoolManagerTab />}
-        {activeTab === 'transactions' && <TransactionsTab />}
-        {activeTab === 'system' && <SystemLogsTab />}
-      </motion.div>
-    </div>
-  )
-}
-
-// Overview Tab Component
-const OverviewTab: React.FC<{ systemStatus: any; hookData: any }> = ({ systemStatus, hookData }) => {
-  if (!systemStatus || !hookData) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-        <span className="ml-2">Loading system status...</span>
-      </div>
-    )
-  }
-
-  const statusCards = [
-    {
-      title: 'Claim Hook',
-      status: hookData.claimHook?.deployed ? 'healthy' : 'warning',
-      value: hookData.claimHook?.deployed ? 'Deployed' : 'Not Deployed',
-      icon: CheckCircle,
-      details: `${hookData.claimHook?.state?.activeUsers || 0} active users`
-    },
-    {
-      title: 'Fee Router Hook',
-      status: hookData.feeRouterHook?.deployed ? 'healthy' : 'error',
-      value: hookData.feeRouterHook?.deployed ? 'Deployed' : 'Pending',
-      icon: hookData.feeRouterHook?.deployed ? CheckCircle : XCircle,
-      details: 'Core revenue distribution'
-    },
-    {
-      title: 'Indexer Service',
-      status: systemStatus.indexer?.status || 'error',
-      value: systemStatus.indexer?.running ? 'Running' : 'Stopped',
-      icon: systemStatus.indexer?.running ? CheckCircle : XCircle,
-      details: 'Real-time monitoring'
-    },
-    {
-      title: 'Total Pool Value',
-      status: 'healthy',
-      value: `${systemStatus.pools?.nftPool?.balance || 0} XAH`,
-      icon: DollarSign,
-      details: 'Pool balances from blockchain'
-    }
-  ]
-
-  return (
-    <div className="space-y-6">
-      {/* Status Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {statusCards.map((card, index) => {
-          const Icon = card.icon
-          const statusColor = card.status === 'healthy' ? 'text-green-400' :
-                            card.status === 'warning' ? 'text-yellow-400' : 'text-red-400'
-
-          return (
-            <motion.div
-              key={card.title}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              className="glass p-6 rounded-xl"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className={`p-2 rounded-lg bg-white/5`}>
-                  <Icon className={`w-6 h-6 ${statusColor}`} />
+        {/* OVERVIEW TAB */}
+        {activeTab === 'overview' && (
+          <div className="space-y-6">
+            <h3 className="text-xl font-semibold text-foreground mb-4">System Overview</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <h4 className="text-lg font-semibold text-foreground">Token Stats</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between p-3 bg-muted rounded-lg">
+                    <span className="text-muted-foreground">Total Supply</span>
+                    <span className="font-semibold">{tokenInfo ? parseFloat(tokenInfo.totalSupply).toLocaleString() : '0'}</span>
+                  </div>
+                  <div className="flex justify-between p-3 bg-muted rounded-lg">
+                    <span className="text-muted-foreground">Circulating</span>
+                    <span className="font-semibold">{tokenInfo ? parseFloat(tokenInfo.circulatingSupply).toLocaleString() : '0'}</span>
+                  </div>
+                  <div className="flex justify-between p-3 bg-muted rounded-lg">
+                    <span className="text-muted-foreground">Accumulated Fees</span>
+                    <span className="font-semibold text-cyan-400">{tokenInfo ? parseFloat(tokenInfo.accumulatedFees).toLocaleString() : '0'}</span>
+                  </div>
                 </div>
               </div>
-              <div>
-                <p className="text-gray-400 text-sm mb-1">{card.title}</p>
-                <p className="text-xl font-bold text-white mb-1">{card.value}</p>
-                <p className="text-gray-500 text-xs">{card.details}</p>
+
+              <div className="space-y-4">
+                <h4 className="text-lg font-semibold text-foreground">Fee Router</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between p-3 bg-muted rounded-lg">
+                    <span className="text-muted-foreground">Total Distributed</span>
+                    <span className="font-semibold text-green-400">{stats ? parseFloat(stats.totalDistributed).toLocaleString() : '0'}</span>
+                  </div>
+                  <div className="flex justify-between p-3 bg-muted rounded-lg">
+                    <span className="text-muted-foreground">Pending</span>
+                    <span className="font-semibold">{stats ? parseFloat(stats.pendingDistribution).toLocaleString() : '0'}</span>
+                  </div>
+                  <div className="flex justify-between p-3 bg-muted rounded-lg">
+                    <span className="text-muted-foreground">Distribution Count</span>
+                    <span className="font-semibold">{stats?.distributionCount || 0}</span>
+                  </div>
+                </div>
               </div>
-            </motion.div>
-          )
-        })}
-      </div>
-
-      {/* Quick Actions */}
-      <div className="glass p-6 rounded-xl">
-        <h3 className="text-xl font-semibold text-white mb-6">Quick Actions</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button className="flex items-center space-x-3 p-4 bg-blue-500/20 hover:bg-blue-500/30 rounded-lg transition-colors">
-            <Upload className="w-5 h-5 text-blue-400" />
-            <span className="text-white font-medium">Deploy Fee Router</span>
-          </button>
-          <button className="flex items-center space-x-3 p-4 bg-green-500/20 hover:bg-green-500/30 rounded-lg transition-colors">
-            <Plus className="w-5 h-5 text-green-400" />
-            <span className="text-white font-medium">Add Accrual</span>
-          </button>
-          <button className="flex items-center space-x-3 p-4 bg-purple-500/20 hover:bg-purple-500/30 rounded-lg transition-colors">
-            <Eye className="w-5 h-5 text-purple-400" />
-            <span className="text-white font-medium">View Logs</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// Hook Management Tab Component
-const HookManagementTab: React.FC<{ hookData: any; setHookData: any }> = ({ hookData, setHookData }) => {
-  const [deployingRouter, setDeployingRouter] = useState(false)
-
-  if (!hookData) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-        <span className="ml-2">Loading hook data...</span>
-      </div>
-    )
-  }
-
-  const deployFeeRouter = async () => {
-    setDeployingRouter(true)
-    try {
-      // TODO: Implement actual hook deployment
-      await new Promise(resolve => setTimeout(resolve, 3000))
-      setHookData((prev: any) => ({
-        ...prev,
-        feeRouterHook: {
-          ...prev.feeRouterHook,
-          deployed: true,
-          version: '1.0.0',
-          lastActivity: 'Just deployed'
-        }
-      }))
-    } catch (error) {
-      console.error('Failed to deploy fee router:', error)
-    } finally {
-      setDeployingRouter(false)
-    }
-  }
-
-  return (
-    <div className="space-y-6">
-      {/* Claim Hook Management */}
-      <div className="glass p-6 rounded-xl">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-semibold text-white">Claim Hook</h3>
-          <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-            <span className="text-green-400 text-sm">Deployed</span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <p className="text-gray-400 text-sm mb-2">Hook Account</p>
-            <p className="text-white font-mono text-sm">{hookData.claimHook.account}</p>
-          </div>
-          <div>
-            <p className="text-gray-400 text-sm mb-2">Version</p>
-            <p className="text-white">{hookData.claimHook.version}</p>
-          </div>
-          <div>
-            <p className="text-gray-400 text-sm mb-2">Total Accruals</p>
-            <p className="text-white text-lg font-semibold">{hookData.claimHook.state.totalAccruals} DRIPPY</p>
-          </div>
-          <div>
-            <p className="text-gray-400 text-sm mb-2">Active Users</p>
-            <p className="text-white text-lg font-semibold">{hookData.claimHook.state.activeUsers}</p>
-          </div>
-        </div>
-
-        <div className="flex space-x-4 mt-6">
-          <button className="flex items-center space-x-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors">
-            <Eye className="w-4 h-4" />
-            <span>View State</span>
-          </button>
-          <button className="flex items-center space-x-2 px-4 py-2 glass text-gray-300 hover:text-white rounded-lg transition-colors">
-            <Edit3 className="w-4 h-4" />
-            <span>Configure</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Fee Router Hook Management */}
-      <div className="glass p-6 rounded-xl">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-semibold text-white">Fee Router Hook</h3>
-          <div className="flex items-center space-x-2">
-            <div className={`w-3 h-3 rounded-full ${hookData.feeRouterHook.deployed ? 'bg-green-400' : 'bg-red-400'}`}></div>
-            <span className={`text-sm ${hookData.feeRouterHook.deployed ? 'text-green-400' : 'text-red-400'}`}>
-              {hookData.feeRouterHook.deployed ? 'Deployed' : 'Not Deployed'}
-            </span>
-          </div>
-        </div>
-
-        {!hookData.feeRouterHook.deployed ? (
-          <div className="text-center py-8">
-            <AlertTriangle className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
-            <h4 className="text-lg font-semibold text-white mb-2">Fee Router Not Deployed</h4>
-            <p className="text-gray-400 mb-6">
-              The fee router hook is required for automatic revenue distribution to pools.
-            </p>
-            <button
-              onClick={deployFeeRouter}
-              disabled={deployingRouter}
-              className="flex items-center space-x-2 px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors disabled:opacity-50 mx-auto"
-            >
-              <Upload className="w-5 h-5" />
-              <span>{deployingRouter ? 'Deploying...' : 'Deploy Fee Router'}</span>
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <p className="text-gray-400 text-sm mb-2">Hook Account</p>
-              <p className="text-white font-mono text-sm">{hookData.feeRouterHook.account}</p>
             </div>
+
+            {/* Quick Actions */}
             <div>
-              <p className="text-gray-400 text-sm mb-2">Total Fees Routed</p>
-              <p className="text-white text-lg font-semibold">{hookData.feeRouterHook.state.totalFees} XRP</p>
+              <h4 className="text-lg font-semibold text-foreground mb-4">Quick Actions</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {!tokenInfo?.antiSnipeActive && admin.isDefaultAdmin && (
+                  <button
+                    onClick={admin.launch}
+                    disabled={admin.isProcessing}
+                    className="p-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 disabled:from-gray-500 disabled:to-gray-600 text-white rounded-xl font-semibold transition-all"
+                  >
+                    🚀 Launch Token
+                  </button>
+                )}
+                {tokenInfo?.antiSnipeActive && admin.isDefaultAdmin && (
+                  <button
+                    onClick={admin.disableAntiSnipe}
+                    disabled={admin.isProcessing}
+                    className="p-4 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 disabled:from-gray-500 disabled:to-gray-600 text-white rounded-xl font-semibold transition-all"
+                  >
+                    Disable Anti-Snipe
+                  </button>
+                )}
+                <button
+                  onClick={admin.distributeFees}
+                  disabled={admin.isProcessing}
+                  className="p-4 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 disabled:from-gray-500 disabled:to-gray-600 text-white rounded-xl font-semibold transition-all"
+                >
+                  Distribute Fees
+                </button>
+                <button
+                  onClick={async () => {
+                    await refetchBalance()
+                    toast.success('Data refreshed')
+                  }}
+                  className="p-4 glass hover:bg-white/5 text-foreground rounded-xl font-semibold transition-all"
+                >
+                  Refresh Data
+                </button>
+              </div>
             </div>
           </div>
         )}
-      </div>
-    </div>
-  )
-}
 
-// Accrual Manager Tab Component
-const AccrualManagerTab: React.FC = () => {
-  const [targetAccount, setTargetAccount] = useState('')
-  const [amount, setAmount] = useState('')
-  const [type, setType] = useState('HOLDER')
-  const [submitting, setSubmitting] = useState(false)
-
-  const submitAccrual = async () => {
-    if (!targetAccount || !amount) return
-
-    setSubmitting(true)
-    try {
-      // TODO: Implement actual accrual submission
-      const response = await fetch('/admin/push-accrual', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          account: targetAccount,
-          drops: parseInt(amount) * 1000000, // Convert to drops
-          type
-        })
-      })
-
-      if (response.ok) {
-        setTargetAccount('')
-        setAmount('')
-        // Show success message
-      }
-    } catch (error) {
-      console.error('Failed to submit accrual:', error)
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  return (
-    <div className="space-y-6">
-      {/* Manual Accrual Form */}
-      <div className="glass p-6 rounded-xl">
-        <h3 className="text-xl font-semibold text-white mb-6">Manual Accrual Adjustment</h3>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-gray-400 text-sm mb-2">Target Account</label>
-            <input
-              type="text"
-              value={targetAccount}
-              onChange={(e) => setTargetAccount(e.target.value)}
-              placeholder="rAccountAddress..."
-              className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-primary-500"
-            />
-          </div>
-          <div>
-            <label className="block text-gray-400 text-sm mb-2">Amount (DRIPPY)</label>
-            <input
-              type="number"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
-              className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-primary-500"
-            />
-          </div>
-          <div>
-            <label className="block text-gray-400 text-sm mb-2">Accrual Type</label>
-            <select
-              value={type}
-              onChange={(e) => setType(e.target.value)}
-              className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-primary-500"
-            >
-              <option value="HOLDER">Holder Reward</option>
-              <option value="NFT">NFT Reward</option>
-              <option value="STAKING">Staking Reward</option>
-            </select>
-          </div>
-          <div className="flex items-end">
-            <button
-              onClick={submitAccrual}
-              disabled={submitting || !targetAccount || !amount}
-              className="w-full px-4 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors disabled:opacity-50"
-            >
-              {submitting ? 'Submitting...' : 'Add Accrual'}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Accruals */}
-      <div className="glass p-6 rounded-xl">
-        <h3 className="text-xl font-semibold text-white mb-6">Recent Accruals</h3>
-        <div className="space-y-4">
-          {/* Recent accruals - TODO: Replace with real API data */}
-          {[
-            { account: 'rAccount1...', amount: '125.50', type: 'HOLDER', time: '2 min ago' },
-            { account: 'rAccount2...', amount: '89.25', type: 'NFT', time: '5 min ago' },
-            { account: 'rAccount3...', amount: '234.75', type: 'STAKING', time: '10 min ago' }
-          ].map((accrual, index) => (
-            <div key={index} className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
+        {/* DISTRIBUTE TOKENS TAB */}
+        {activeTab === 'distribute' && (
+          <div className="space-y-6">
+            <div className="flex items-start space-x-3 p-4 bg-cyan-500/10 border border-cyan-500/30 rounded-xl mb-6">
+              <Zap className="w-6 h-6 text-cyan-400 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-white font-mono text-sm">{accrual.account}</p>
-                <p className="text-gray-400 text-xs">{accrual.time}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-white font-semibold">+{accrual.amount} DRIPPY</p>
-                <p className="text-gray-400 text-xs">{accrual.type}</p>
+                <h4 className="text-cyan-400 font-semibold">Distribute DRIPPY Tokens</h4>
+                <p className="text-cyan-400/80 text-sm">
+                  Send DRIPPY to multiple addresses. Total Supply: 589,000,000 DRIPPY
+                </p>
               </div>
             </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
 
-// Pool Manager Tab Component
-const PoolManagerTab: React.FC = () => {
-  const [poolData, setPoolData] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const fetchPoolData = async () => {
-      try {
-        const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8787'
-        const response = await fetch(`${baseUrl}/admin/system/health`, {
-          headers: { 'x-admin-account': 'rpExedMjjNGVV4SHCh2HWSmia4zZd3mZK2' }
-        })
-
-        if (response.ok) {
-          const data = await response.json()
-          setPoolData(data.pools)
-        }
-      } catch (error) {
-        console.error('Failed to fetch pool data:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchPoolData()
-  }, [])
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-        <span className="ml-2">Loading pool data...</span>
-      </div>
-    )
-  }
-
-  const pools = poolData ? [
-    {
-      name: 'NFT Rewards Pool',
-      balance: poolData.nftPool?.balance || '0',
-      allocation: '40%',
-      status: poolData.nftPool?.status || 'unknown',
-      account: poolData.nftPool?.account
-    },
-    {
-      name: 'Holder Rewards Pool',
-      balance: poolData.holderPool?.balance || '0',
-      allocation: '30%',
-      status: poolData.holderPool?.status || 'unknown',
-      account: poolData.holderPool?.account
-    },
-    {
-      name: 'Treasury Pool',
-      balance: poolData.treasuryPool?.balance || '0',
-      allocation: '20%',
-      status: poolData.treasuryPool?.status || 'unknown',
-      account: poolData.treasuryPool?.account
-    },
-    {
-      name: 'AMM Pool',
-      balance: poolData.ammPool?.balance || '0',
-      allocation: '10%',
-      status: poolData.ammPool?.status || 'unknown',
-      account: poolData.ammPool?.account
-    }
-  ] : []
-
-  return (
-    <div className="space-y-6">
-      {pools.map((pool) => (
-        <div key={pool.name} className="glass p-6 rounded-xl">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-white">{pool.name}</h3>
-            <div className="flex items-center space-x-2">
-              <div className={`w-3 h-3 rounded-full ${pool.status === 'healthy' ? 'bg-green-400' : 'bg-yellow-400'}`}></div>
-              <span className={`text-sm ${pool.status === 'healthy' ? 'text-green-400' : 'text-yellow-400'}`}>
-                {pool.status}
-              </span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <p className="text-gray-400 text-sm mb-1">Balance</p>
-              <p className="text-white text-xl font-semibold">{pool.balance} XAH</p>
-              {pool.account && (
-                <p className="text-gray-500 text-xs font-mono mt-1">{pool.account}</p>
-              )}
-            </div>
-            <div>
-              <p className="text-gray-400 text-sm mb-1">Allocation</p>
-              <p className="text-white text-xl font-semibold">{pool.allocation}</p>
-            </div>
-            <div className="flex space-x-2">
-              <button className="flex-1 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-sm">
-                Top Up
-              </button>
-              <button className="flex-1 px-3 py-2 glass text-gray-300 hover:text-white rounded-lg transition-colors text-sm">
-                Withdraw
-              </button>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-// Transactions Tab Component
-const TransactionsTab: React.FC = () => {
-  const [transactions, setTransactions] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const fetchTransactions = async () => {
-      try {
-        const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8787'
-        const response = await fetch(`${baseUrl}/admin/transactions/recent`, {
-          headers: { 'x-admin-account': 'rpExedMjjNGVV4SHCh2HWSmia4zZd3mZK2' }
-        })
-
-        if (response.ok) {
-          const data = await response.json()
-          setTransactions(data.transactions || [])
-        }
-      } catch (error) {
-        console.error('Failed to fetch transactions:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchTransactions()
-  }, [])
-
-  if (loading) {
-    return (
-      <div className="glass p-6 rounded-xl">
-        <h3 className="text-xl font-semibold text-white mb-6">Recent Transactions</h3>
-        <div className="flex items-center justify-center p-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-          <span className="ml-2">Loading transactions...</span>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="glass p-6 rounded-xl">
-      <h3 className="text-xl font-semibold text-white mb-6">Recent Transactions</h3>
-      <div className="space-y-4">
-        {transactions.length === 0 ? (
-          <div className="text-center py-8">
-            <Activity className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-400">No recent transactions found</p>
-          </div>
-        ) : (
-          transactions.map((tx, index) => (
-            <div key={index} className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
-              <div className="flex items-center space-x-4">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  tx.status === 'success' ? 'bg-green-500/20' : 'bg-red-500/20'
-                }`}>
-                  <Activity className={`w-5 h-5 ${
-                    tx.status === 'success' ? 'text-green-400' : 'text-red-400'
-                  }`} />
+            {/* Token Diagnostics */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div className="p-4 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/30 rounded-xl">
+                <div className="text-sm text-muted-foreground mb-1">Total Supply</div>
+                <div className="text-2xl font-bold text-foreground">
+                  {tokenInfo ? parseFloat(tokenInfo.totalSupply).toLocaleString() : '0'} DRIPPY
                 </div>
-                <div>
-                  <p className="text-white font-medium">{tx.type}</p>
-                  <p className="text-gray-400 text-sm font-mono">{tx.hash}</p>
+                <div className="text-xs text-muted-foreground mt-1">
+                  Max: {tokenInfo ? parseFloat(tokenInfo.maxSupply).toLocaleString() : '589,000,000'}
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-white font-medium">{tx.amount}</p>
-                <p className="text-gray-400 text-sm">{tx.timestamp ? new Date(tx.timestamp).toLocaleString() : tx.time}</p>
+              <div className="p-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-xl">
+                <div className="text-sm text-muted-foreground mb-1">Your Balance (Deployer)</div>
+                <div className="text-2xl font-bold text-foreground">
+                  {parseFloat(balance || '0').toLocaleString()} DRIPPY
+                </div>
+                <div className="text-xs text-muted-foreground mt-1 font-mono">
+                  {address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'Not connected'}
+                </div>
               </div>
             </div>
-          ))
-        )}
-      </div>
-    </div>
-  )
-}
 
-// System Logs Tab Component
-const SystemLogsTab: React.FC = () => {
-  const [logs, setLogs] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const fetchLogs = async () => {
-      try {
-        const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8787'
-        const response = await fetch(`${baseUrl}/admin/logs`, {
-          headers: { 'x-admin-account': 'rpExedMjjNGVV4SHCh2HWSmia4zZd3mZK2' }
-        })
-
-        if (response.ok) {
-          const data = await response.json()
-          setLogs(data.logs || [])
-        }
-      } catch (error) {
-        console.error('Failed to fetch logs:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchLogs()
-  }, [])
-
-  if (loading) {
-    return (
-      <div className="glass p-6 rounded-xl">
-        <h3 className="text-xl font-semibold text-white mb-6">System Logs</h3>
-        <div className="flex items-center justify-center p-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-          <span className="ml-2">Loading logs...</span>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="glass p-6 rounded-xl">
-      <h3 className="text-xl font-semibold text-white mb-6">System Logs</h3>
-      <div className="space-y-3">
-        {logs.length === 0 ? (
-          <div className="text-center py-8">
-            <Terminal className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-400">No logs available</p>
-          </div>
-        ) : (
-          logs.map((log, index) => (
-            <div key={index} className="flex items-start space-x-3 p-3 bg-white/5 rounded-lg">
-              <div className={`w-3 h-3 rounded-full mt-2 ${
-                log.level === 'error' ? 'bg-red-400' :
-                log.level === 'warning' ? 'bg-yellow-400' :
-                log.level === 'success' ? 'bg-green-400' : 'bg-blue-400'
-              }`}></div>
-              <div className="flex-1">
-                <p className="text-white text-sm">{log.message}</p>
-                <p className="text-gray-500 text-xs mt-1">{log.timestamp ? new Date(log.timestamp).toLocaleString() : log.time}</p>
-                {log.source && (
-                  <p className="text-gray-600 text-xs">Source: {log.source}</p>
+            {/* Your Balance */}
+            <div className="p-4 bg-gradient-to-r from-purple-500/10 to-cyan-500/10 border border-purple-500/30 rounded-xl">
+              <div className="flex flex-col space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Distribution Wallet Balance:</span>
+                  <span className="text-2xl font-bold text-foreground">{parseFloat(balance || '0').toLocaleString()} DRIPPY</span>
+                </div>
+                {parseFloat(balance || '0') === 0 && parseFloat(tokenInfo?.totalSupply || '0') === 0 && (
+                  <div className="flex flex-col space-y-3 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+                    <div className="flex items-start space-x-2">
+                      <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                      <div className="text-sm text-red-400 space-y-2">
+                        <div><strong>⚠️ NO TOKENS MINTED!</strong></div>
+                        <div>The total supply is 0. No tokens were minted during deployment.</div>
+                      </div>
+                    </div>
+                    <div className="text-sm text-white space-y-2">
+                      <div><strong>Solution: Mint Initial Supply</strong></div>
+                      <ol className="list-decimal list-inside space-y-1 text-xs text-gray-300">
+                        <li>Grant yourself the BRIDGE_ROLE (use Access Control tab)</li>
+                        <li>Use bridgeMint function below to mint 589,000,000 DRIPPY</li>
+                        <li>Or re-deploy the contract with proper initialization</li>
+                      </ol>
+                    </div>
+                  </div>
+                )}
+                {parseFloat(balance || '0') === 0 && parseFloat(tokenInfo?.totalSupply || '0') > 0 && (
+                  <div className="flex items-start space-x-2 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                    <AlertTriangle className="w-4 h-4 text-yellow-400 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm text-yellow-400 space-y-2">
+                      <div><strong>Tokens exist but not in your wallet!</strong></div>
+                      <div>Total Supply: {tokenInfo ? parseFloat(tokenInfo.totalSupply).toLocaleString() : '0'} DRIPPY</div>
+                      <div className="text-xs">Check pool addresses or use the Emergency tab to recover stuck tokens.</div>
+                    </div>
+                  </div>
+                )}
+                {parseFloat(balance || '0') > 0 && (
+                  <div className="flex items-center space-x-2 text-green-400 text-sm">
+                    <CheckCircle className="w-4 h-4" />
+                    <span>Ready to distribute tokens</span>
+                  </div>
                 )}
               </div>
             </div>
-          ))
+
+            {/* Emergency Mint Section */}
+            {parseFloat(tokenInfo?.totalSupply || '0') === 0 && admin.isDefaultAdmin && (
+              <div className="space-y-4 p-4 bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/30 rounded-xl">
+                <h4 className="text-lg font-semibold text-foreground flex items-center space-x-2">
+                  <AlertTriangle className="w-5 h-5 text-red-400" />
+                  <span className="text-red-400">Emergency: Mint Initial Supply</span>
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  No tokens exist. You need to mint the initial supply. As DEFAULT_ADMIN, you can grant yourself BRIDGE_ROLE and mint tokens.
+                </p>
+                
+                <div className="space-y-3">
+                  <div className="p-3 bg-black/30 rounded-lg">
+                    <div className="text-xs text-gray-400 mb-2">Step 1: Grant BRIDGE_ROLE to yourself</div>
+                    <button
+                      onClick={async () => {
+                        if (!address) {
+                          toast.error('Wallet not connected')
+                          return
+                        }
+                        const BRIDGE_ROLE = '0x7b765e0e932d348852a6f810bfa1ab891e259123f02db8cdcde614c570223357' // keccak256("BRIDGE_ROLE")
+                        await admin.grantRole(BRIDGE_ROLE, address as `0x${string}`)
+                      }}
+                      disabled={admin.isProcessing || !address}
+                      className="w-full px-4 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 disabled:from-gray-500 disabled:to-gray-600 text-white rounded-lg font-semibold transition-all"
+                    >
+                      Grant BRIDGE_ROLE to Self
+                    </button>
+                  </div>
+                  
+                  <div className="p-3 bg-black/30 rounded-lg">
+                    <div className="text-xs text-gray-400 mb-2">Step 2: Mint initial supply to yourself</div>
+                    <button
+                      onClick={async () => {
+                        if (!address) {
+                          toast.error('Wallet not connected')
+                          return
+                        }
+                        const success = await admin.bridgeMint(address as `0x${string}`, '589000000')
+                        if (success) {
+                          await refetchBalance()
+                          toast.success('🎉 Successfully minted 589M DRIPPY!')
+                        }
+                      }}
+                      disabled={admin.isProcessing || !address}
+                      className="w-full px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 disabled:from-gray-500 disabled:to-gray-600 text-white rounded-lg font-semibold transition-all"
+                    >
+                      {admin.isProcessing ? 'Minting...' : 'Mint 589,000,000 DRIPPY'}
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="text-xs text-yellow-400 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                  <strong>Note:</strong> This uses bridgeMint which requires BRIDGE_ROLE. After minting, tokens will appear in your wallet and you can distribute them.
+                </div>
+              </div>
+            )}
+
+            {/* Single Transfer */}
+            <div className="space-y-4">
+              <h4 className="text-lg font-semibold text-foreground flex items-center space-x-2">
+                <Users className="w-5 h-5" />
+                <span>Single Transfer</span>
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-muted-foreground mb-2">Recipient Address</label>
+                  <input
+                    type="text"
+                    value={singleRecipient}
+                    onChange={(e) => setSingleRecipient(e.target.value)}
+                    placeholder="0x..."
+                    className="w-full px-4 py-3 bg-muted border border-border rounded-xl focus:outline-none focus:border-primary text-foreground font-mono text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-muted-foreground mb-2">Amount (DRIPPY)</label>
+                  <input
+                    type="number"
+                    value={singleAmount}
+                    onChange={(e) => setSingleAmount(e.target.value)}
+                    placeholder="1000000"
+                    className="w-full px-4 py-3 bg-muted border border-border rounded-xl focus:outline-none focus:border-primary text-foreground"
+                  />
+                </div>
+              </div>
+              <button
+                onClick={handleSingleTransfer}
+                disabled={isTransferring || !singleRecipient || !singleAmount}
+                className="w-full px-6 py-4 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 disabled:from-gray-500 disabled:to-gray-600 text-white font-semibold rounded-xl transition-all flex items-center justify-center space-x-2"
+              >
+                <Zap className="w-5 h-5" />
+                <span>{isTransferring ? 'Sending...' : 'Send Tokens'}</span>
+              </button>
+            </div>
+
+            {/* Batch Transfer */}
+            <div className="space-y-4 border-t border-white/10 pt-6">
+              <h4 className="text-lg font-semibold text-foreground flex items-center space-x-2">
+                <Users className="w-5 h-5" />
+                <span>Batch Transfer</span>
+              </h4>
+              <p className="text-sm text-muted-foreground">
+                Enter one address per line, and one amount per line. They must match in count.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-muted-foreground mb-2">
+                    Recipients (one per line)
+                  </label>
+                  <textarea
+                    value={batchRecipients}
+                    onChange={(e) => setBatchRecipients(e.target.value)}
+                    placeholder="0x1234...&#10;0x5678...&#10;0x9abc..."
+                    rows={8}
+                    className="w-full px-4 py-3 bg-muted border border-border rounded-xl focus:outline-none focus:border-primary text-foreground font-mono text-sm resize-none"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {batchRecipients.split('\n').filter(r => r.trim()).length} addresses
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm text-muted-foreground mb-2">
+                    Amounts (one per line)
+                  </label>
+                  <textarea
+                    value={batchAmounts}
+                    onChange={(e) => setBatchAmounts(e.target.value)}
+                    placeholder="1000000&#10;2000000&#10;500000"
+                    rows={8}
+                    className="w-full px-4 py-3 bg-muted border border-border rounded-xl focus:outline-none focus:border-primary text-foreground resize-none"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {batchAmounts.split('\n').filter(a => a.trim()).length} amounts | Total:{' '}
+                    {batchAmounts.split('\n').filter(a => a.trim()).reduce((sum, val) => sum + parseFloat(val || '0'), 0).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleBatchTransfer}
+                disabled={isTransferring || !batchRecipients || !batchAmounts}
+                className="w-full px-6 py-4 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:from-gray-500 disabled:to-gray-600 text-white font-semibold rounded-xl transition-all flex items-center justify-center space-x-2"
+              >
+                <Zap className="w-5 h-5" />
+                <span>{isTransferring ? 'Sending...' : 'Batch Send Tokens'}</span>
+              </button>
+            </div>
+          </div>
         )}
-      </div>
+
+        {/* TOKEN CONFIG TAB */}
+        {activeTab === 'token' && (
+          <div className="space-y-6">
+            <h3 className="text-xl font-semibold text-foreground mb-4">Token Configuration</h3>
+
+            {/* Tax Rates */}
+            {admin.isFeeManager && (
+              <div className="space-y-4">
+                <h4 className="text-lg font-semibold text-foreground">Tax Rates</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-muted-foreground mb-2">Normal Tax (%)</label>
+                    <input
+                      type="number"
+                      value={normalTax}
+                      onChange={(e) => setNormalTax(e.target.value)}
+                      className="w-full px-4 py-3 bg-muted border border-white/10 rounded-xl text-foreground focus:outline-none focus:border-cyan-500/50"
+                      placeholder="5"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-muted-foreground mb-2">Anti-Snipe Tax (%)</label>
+                    <input
+                      type="number"
+                      value={antiSnipeTax}
+                      onChange={(e) => setAntiSnipeTax(e.target.value)}
+                      className="w-full px-4 py-3 bg-muted border border-white/10 rounded-xl text-foreground focus:outline-none focus:border-cyan-500/50"
+                      placeholder="50"
+                    />
+                  </div>
+                </div>
+                <button
+                  onClick={handleUpdateTax}
+                  disabled={admin.isProcessing}
+                  className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 disabled:from-gray-500 disabled:to-gray-600 text-white font-semibold rounded-xl transition-all"
+                >
+                  {admin.isProcessing ? 'Updating...' : 'Update Tax Rates'}
+                </button>
+              </div>
+            )}
+
+            {/* Transaction Limits */}
+            {admin.isDefaultAdmin && (
+              <div className="space-y-4">
+                <h4 className="text-lg font-semibold text-foreground">Transaction Limits</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-muted-foreground mb-2">Max Transaction (DRIPPY)</label>
+                    <input
+                      type="text"
+                      value={maxTx}
+                      onChange={(e) => setMaxTx(e.target.value)}
+                      className="w-full px-4 py-3 bg-muted border border-white/10 rounded-xl text-foreground focus:outline-none focus:border-cyan-500/50"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-muted-foreground mb-2">Max Wallet (DRIPPY)</label>
+                    <input
+                      type="text"
+                      value={maxWallet}
+                      onChange={(e) => setMaxWallet(e.target.value)}
+                      className="w-full px-4 py-3 bg-muted border border-white/10 rounded-xl text-foreground focus:outline-none focus:border-cyan-500/50"
+                    />
+                  </div>
+                </div>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={handleUpdateLimits}
+                    disabled={admin.isProcessing}
+                    className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:from-gray-500 disabled:to-gray-600 text-white font-semibold rounded-xl transition-all"
+                  >
+                    {admin.isProcessing ? 'Updating...' : 'Update Limits'}
+                  </button>
+                  <button
+                    onClick={admin.removeLimits}
+                    disabled={admin.isProcessing}
+                    className="px-6 py-3 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 disabled:from-gray-500 disabled:to-gray-600 text-white font-semibold rounded-xl transition-all"
+                  >
+                    Remove Limits (Permanent)
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* AMM Pair Management */}
+            {admin.isOperator && (
+              <div className="space-y-4">
+                <h4 className="text-lg font-semibold text-foreground">AMM Pair Management</h4>
+                <div>
+                  <label className="block text-sm text-muted-foreground mb-2">Pair Address</label>
+                  <input
+                    type="text"
+                    value={pairAddress}
+                    onChange={(e) => setPairAddress(e.target.value)}
+                    className="w-full px-4 py-3 bg-muted border border-white/10 rounded-xl text-foreground focus:outline-none focus:border-cyan-500/50"
+                    placeholder="0x..."
+                  />
+                </div>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => admin.setAMMPair(pairAddress as `0x${string}`, true)}
+                    disabled={admin.isProcessing || !pairAddress}
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 disabled:from-gray-500 disabled:to-gray-600 text-white font-semibold rounded-xl transition-all"
+                  >
+                    Add Pair
+                  </button>
+                  <button
+                    onClick={() => admin.setAMMPair(pairAddress as `0x${string}`, false)}
+                    disabled={admin.isProcessing || !pairAddress}
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 disabled:from-gray-500 disabled:to-gray-600 text-white font-semibold rounded-xl transition-all"
+                  >
+                    Remove Pair
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* FEES TAB */}
+        {activeTab === 'fees' && admin.isFeeManager && (
+          <div className="space-y-6">
+            <h3 className="text-xl font-semibold text-foreground mb-4">Fee Distribution Configuration</h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm text-muted-foreground mb-2">NFT Pool (%)</label>
+                <input
+                  type="number"
+                  value={nftFee}
+                  onChange={(e) => setNftFee(e.target.value)}
+                  className="w-full px-4 py-3 bg-muted border border-white/10 rounded-xl text-foreground focus:outline-none focus:border-blue-500/50"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-muted-foreground mb-2">Token Pool (%)</label>
+                <input
+                  type="number"
+                  value={tokenFee}
+                  onChange={(e) => setTokenFee(e.target.value)}
+                  className="w-full px-4 py-3 bg-muted border border-white/10 rounded-xl text-foreground focus:outline-none focus:border-cyan-500/50"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-muted-foreground mb-2">Treasury Pool (%)</label>
+                <input
+                  type="number"
+                  value={treasuryFee}
+                  onChange={(e) => setTreasuryFee(e.target.value)}
+                  className="w-full px-4 py-3 bg-muted border border-white/10 rounded-xl text-foreground focus:outline-none focus:border-purple-500/50"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-muted-foreground mb-2">AMM Pool (%)</label>
+                <input
+                  type="number"
+                  value={ammFee}
+                  onChange={(e) => setAmmFee(e.target.value)}
+                  className="w-full px-4 py-3 bg-muted border border-white/10 rounded-xl text-foreground focus:outline-none focus:border-pink-500/50"
+                />
+              </div>
+            </div>
+
+            <div className="p-4 bg-blue-500/10 rounded-xl border border-blue-500/30">
+              <p className="text-sm text-blue-400">
+                Total: {parseFloat(nftFee) + parseFloat(tokenFee) + parseFloat(treasuryFee) + parseFloat(ammFee)}%
+                {parseFloat(nftFee) + parseFloat(tokenFee) + parseFloat(treasuryFee) + parseFloat(ammFee) !== 100 && (
+                  <span className="text-red-400 ml-2">(Must equal 100%)</span>
+                )}
+              </p>
+            </div>
+
+            <button
+              onClick={handleUpdateFees}
+              disabled={admin.isProcessing}
+              className="px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 disabled:from-gray-500 disabled:to-gray-600 text-white font-semibold rounded-xl transition-all"
+            >
+              {admin.isProcessing ? 'Updating...' : 'Update Fee Distribution'}
+            </button>
+
+            {/* Min Distribution */}
+            <div className="space-y-4 pt-6 border-t border-white/10">
+              <h4 className="text-lg font-semibold text-foreground">Router Settings</h4>
+              <div>
+                <label className="block text-sm text-muted-foreground mb-2">Min Distribution Amount (DRIPPY)</label>
+                <input
+                  type="text"
+                  value={minDistribution}
+                  onChange={(e) => setMinDistribution(e.target.value)}
+                  className="w-full px-4 py-3 bg-muted border border-white/10 rounded-xl text-foreground focus:outline-none focus:border-cyan-500/50"
+                />
+              </div>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => admin.updateMinDistribution(minDistribution)}
+                  disabled={admin.isProcessing}
+                  className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:from-gray-500 disabled:to-gray-600 text-white font-semibold rounded-xl transition-all"
+                >
+                  Update Min Amount
+                </button>
+                <button
+                  onClick={admin.forceDistribute}
+                  disabled={admin.isProcessing}
+                  className="px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 disabled:from-gray-500 disabled:to-gray-600 text-white font-semibold rounded-xl transition-all"
+                >
+                  Force Distribute Now
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ACCESS CONTROL TAB */}
+        {activeTab === 'access' && admin.isOperator && (
+          <div className="space-y-6">
+            <h3 className="text-xl font-semibold text-foreground mb-4">Access Control</h3>
+
+            {/* Whitelist */}
+            <div className="space-y-4">
+              <h4 className="text-lg font-semibold text-foreground">Whitelist Management</h4>
+              <p className="text-sm text-muted-foreground">Add addresses to bypass anti-snipe tax (comma-separated)</p>
+              <textarea
+                value={addressInput}
+                onChange={(e) => setAddressInput(e.target.value)}
+                className="w-full px-4 py-3 bg-muted border border-white/10 rounded-xl text-foreground focus:outline-none focus:border-green-500/50"
+                placeholder="0x123..., 0x456..."
+                rows={3}
+              />
+              <div className="flex space-x-3">
+                <button
+                  onClick={handleAddToWhitelist}
+                  disabled={admin.isProcessing || !addressInput}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 disabled:from-gray-500 disabled:to-gray-600 text-white font-semibold rounded-xl transition-all flex items-center justify-center space-x-2"
+                >
+                  <CheckCircle className="w-5 h-5" />
+                  <span>Add to Whitelist</span>
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!addressInput) return
+                    const addresses = addressInput.split(',').map(a => a.trim() as `0x${string}`)
+                    await admin.removeFromWhitelist(addresses)
+                    setAddressInput('')
+                  }}
+                  disabled={admin.isProcessing || !addressInput}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 disabled:from-gray-500 disabled:to-gray-600 text-white font-semibold rounded-xl transition-all flex items-center justify-center space-x-2"
+                >
+                  <XCircle className="w-5 h-5" />
+                  <span>Remove from Whitelist</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Blacklist */}
+            <div className="space-y-4 pt-6 border-t border-white/10">
+              <h4 className="text-lg font-semibold text-foreground">Blacklist Management</h4>
+              <p className="text-sm text-muted-foreground">Block addresses from trading (comma-separated)</p>
+              <div className="flex space-x-3">
+                <button
+                  onClick={handleBlacklist}
+                  disabled={admin.isProcessing || !addressInput}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 disabled:from-gray-500 disabled:to-gray-600 text-white font-semibold rounded-xl transition-all flex items-center justify-center space-x-2"
+                >
+                  <Ban className="w-5 h-5" />
+                  <span>Blacklist</span>
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!addressInput) return
+                    const addresses = addressInput.split(',').map(a => a.trim() as `0x${string}`)
+                    await admin.unblacklistAddresses(addresses)
+                    setAddressInput('')
+                  }}
+                  disabled={admin.isProcessing || !addressInput}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 disabled:from-gray-500 disabled:to-gray-600 text-white font-semibold rounded-xl transition-all flex items-center justify-center space-x-2"
+                >
+                  <CheckCircle className="w-5 h-5" />
+                  <span>Unblacklist</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Role Management */}
+            {admin.isDefaultAdmin && (
+              <div className="space-y-4 pt-6 border-t border-white/10">
+                <h4 className="text-lg font-semibold text-foreground">Role Management</h4>
+                <div>
+                  <label className="block text-sm text-muted-foreground mb-2">Address</label>
+                  <input
+                    type="text"
+                    value={roleAddress}
+                    onChange={(e) => setRoleAddress(e.target.value)}
+                    className="w-full px-4 py-3 bg-muted border border-white/10 rounded-xl text-foreground focus:outline-none focus:border-cyan-500/50"
+                    placeholder="0x..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-muted-foreground mb-2">Role</label>
+                  <select
+                    value={selectedRole}
+                    onChange={(e) => setSelectedRole(e.target.value)}
+                    className="w-full px-4 py-3 bg-muted border border-white/10 rounded-xl text-foreground focus:outline-none focus:border-cyan-500/50"
+                  >
+                    <option value={admin.roles.OPERATOR_ROLE}>Operator</option>
+                    <option value={admin.roles.FEE_MANAGER_ROLE}>Fee Manager</option>
+                    <option value={admin.roles.DEFAULT_ADMIN_ROLE}>Admin</option>
+                  </select>
+                </div>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={handleGrantRole}
+                    disabled={admin.isProcessing || !roleAddress}
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 disabled:from-gray-500 disabled:to-gray-600 text-white font-semibold rounded-xl transition-all"
+                  >
+                    Grant Role
+                  </button>
+                  <button
+                    onClick={() => admin.revokeRole(selectedRole, roleAddress as `0x${string}`)}
+                    disabled={admin.isProcessing || !roleAddress}
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 disabled:from-gray-500 disabled:to-gray-600 text-white font-semibold rounded-xl transition-all"
+                  >
+                    Revoke Role
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* EMERGENCY TAB */}
+        {activeTab === 'emergency' && admin.isDefaultAdmin && (
+          <div className="space-y-6">
+            <div className="flex items-start space-x-3 p-4 bg-red-500/10 border border-red-500/30 rounded-xl mb-6">
+              <AlertTriangle className="w-6 h-6 text-red-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-red-400 font-semibold">Danger Zone</h4>
+                <p className="text-red-400/80 text-sm">
+                  These actions have significant impact. Use with caution.
+                </p>
+              </div>
+            </div>
+
+            {/* Pause Controls */}
+            <div className="space-y-4">
+              <h4 className="text-lg font-semibold text-foreground">Contract Controls</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm text-muted-foreground">Token Contract</label>
+                  {admin.isPaused ? (
+                    <button
+                      onClick={admin.unpauseToken}
+                      disabled={admin.isProcessing}
+                      className="w-full px-6 py-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 disabled:from-gray-500 disabled:to-gray-600 text-white font-semibold rounded-xl transition-all flex items-center justify-center space-x-2"
+                    >
+                      <Unlock className="w-5 h-5" />
+                      <span>Unpause Token</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={admin.pauseToken}
+                      disabled={admin.isProcessing}
+                      className="w-full px-6 py-4 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 disabled:from-gray-500 disabled:to-gray-600 text-white font-semibold rounded-xl transition-all flex items-center justify-center space-x-2"
+                    >
+                      <Lock className="w-5 h-5" />
+                      <span>Pause Token</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm text-muted-foreground">Fee Router</label>
+                  {admin.isRouterPaused ? (
+                    <button
+                      onClick={admin.unpauseRouter}
+                      disabled={admin.isProcessing}
+                      className="w-full px-6 py-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 disabled:from-gray-500 disabled:to-gray-600 text-white font-semibold rounded-xl transition-all flex items-center justify-center space-x-2"
+                    >
+                      <Unlock className="w-5 h-5" />
+                      <span>Unpause Router</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={admin.pauseRouter}
+                      disabled={admin.isProcessing}
+                      className="w-full px-6 py-4 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 disabled:from-gray-500 disabled:to-gray-600 text-white font-semibold rounded-xl transition-all flex items-center justify-center space-x-2"
+                    >
+                      <Lock className="w-5 h-5" />
+                      <span>Pause Router</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </motion.div>
     </div>
   )
 }

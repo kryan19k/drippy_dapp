@@ -100,6 +100,131 @@ app.get('/api/xumm/getpayload', async (req, res) => {
   }
 })
 
+// Create a Payment payload for XRPL bridge transaction
+app.post('/api/xumm/create-bridge-payment', async (req, res) => {
+  try {
+    const key = process.env.XUMM_API_KEY
+    const secret = process.env.XUMM_API_SECRET || process.env.XUMM_APIKEY_SECRET
+    if (!key || !secret) return res.status(500).json({ error: 'XUMM configuration missing' })
+
+    const { userAddress, destinationAddress, amount, issuer, currency, evmDestination, destinationChain } = req.body
+    if (!userAddress || !destinationAddress || !amount || !issuer || !currency) {
+      return res.status(400).json({ error: 'Missing required fields for bridge payment' })
+    }
+
+    const xumm = new XummSdk(key, secret)
+
+    // Convert currency to hex if longer than 3 characters
+    const currencyCode = currency.length > 3 
+      ? Buffer.from(currency, 'utf8').toString('hex').toUpperCase().padEnd(40, '0')
+      : currency
+
+    // Build memos for Axelar bridge
+    const memos = []
+    if (destinationChain) {
+      memos.push({
+        Memo: {
+          MemoType: Buffer.from('destinationChain', 'utf8').toString('hex').toUpperCase(),
+          MemoData: Buffer.from(destinationChain, 'utf8').toString('hex').toUpperCase()
+        }
+      })
+    }
+    if (evmDestination) {
+      memos.push({
+        Memo: {
+          MemoType: Buffer.from('destinationAddress', 'utf8').toString('hex').toUpperCase(),
+          MemoData: Buffer.from(evmDestination.toLowerCase(), 'utf8').toString('hex').toUpperCase()
+        }
+      })
+    }
+
+    const payload = {
+      txjson: {
+        TransactionType: 'Payment',
+        Account: userAddress,
+        Destination: destinationAddress,
+        Amount: {
+          currency: currencyCode,
+          issuer: issuer,
+          value: amount
+        },
+        Memos: memos
+      },
+      options: {
+        submit: true,
+        return_url: {
+          web: process.env.RETURN_URL_WEB || 'http://localhost:5173',
+          app: process.env.RETURN_URL_APP || 'http://localhost:5173'
+        },
+        custom_meta: {
+          identifier: 'drippy-bridge',
+          instruction: `Bridge ${amount} ${currency} to EVM`
+        }
+      }
+    }
+
+    console.log('Creating bridge payment payload:', JSON.stringify(payload, null, 2))
+    const response = await xumm.payload.create(payload, true)
+    console.log('Bridge payload created:', response.uuid)
+    return res.json({ payload: response })
+  } catch (e) {
+    console.error('create-bridge-payment error', e)
+    return res.status(400).json({ error: 'Failed to create bridge payment payload', details: e.message })
+  }
+})
+
+// Create a TrustSet payload for DRIPPY trustline
+app.post('/api/xumm/create-trustline', async (req, res) => {
+  try {
+    const key = process.env.XUMM_API_KEY
+    const secret = process.env.XUMM_API_SECRET || process.env.XUMM_APIKEY_SECRET
+    if (!key || !secret) return res.status(500).json({ error: 'XUMM configuration missing' })
+
+    const { userAddress, issuer, currency, limit } = req.body
+    if (!userAddress || !issuer || !currency) {
+      return res.status(400).json({ error: 'Missing required fields for trustline (userAddress, issuer, currency)' })
+    }
+
+    const xumm = new XummSdk(key, secret)
+
+    // Convert currency to hex if it's longer than 3 characters (XRPL standard)
+    const currencyCode = currency.length > 3 
+      ? Buffer.from(currency, 'utf8').toString('hex').toUpperCase().padEnd(40, '0')
+      : currency
+
+    const payload = {
+      txjson: {
+        TransactionType: 'TrustSet',
+        Account: userAddress,
+        LimitAmount: {
+          currency: currencyCode,
+          issuer: issuer,
+          value: limit || '1000000000'
+        }
+      },
+      options: {
+        submit: true,
+        return_url: {
+          web: process.env.RETURN_URL_WEB || 'http://localhost:5173',
+          app: process.env.RETURN_URL_APP || 'http://localhost:5173'
+        },
+        custom_meta: {
+          identifier: 'drippy-trustline',
+          instruction: `Set up ${currency} trustline`
+        }
+      }
+    }
+
+    console.log('Creating trustline payload:', JSON.stringify(payload, null, 2))
+    const response = await xumm.payload.create(payload, true)
+    console.log('Trustline payload created:', response.uuid)
+    return res.json({ payload: response })
+  } catch (e) {
+    console.error('create-trustline error', e)
+    return res.status(400).json({ error: 'Failed to create trustline payload', details: e.message })
+  }
+})
+
 // Create a Claim payload (Payment with Memo: CLAIM) targeting Xahau by default
 app.post('/api/xumm/create-claim', async (req, res) => {
   try {

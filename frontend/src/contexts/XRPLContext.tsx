@@ -54,10 +54,17 @@ export const XRPLProvider: React.FC<XRPLProviderProps> = ({ children }) => {
     // Initialize XRPL client
     const initializeClient = async () => {
       try {
-        const client = new Client('wss://xrplcluster.com/')
+        // Use testnet for development/testing
+        const wsUrl = import.meta.env.VITE_XRPL_TESTNET 
+          ? 'wss://s.altnet.rippletest.net:51233' 
+          : 'wss://xrplcluster.com/'
+        
+        console.log('🌐 Connecting to XRPL:', wsUrl)
+        
+        const client = new Client(wsUrl)
         await client.connect()
         setClient(client)
-        console.log('XRPL client connected')
+        console.log('✅ XRPL client connected to:', wsUrl)
       } catch (error) {
         console.error('Failed to connect to XRPL:', error)
       }
@@ -80,21 +87,33 @@ export const XRPLProvider: React.FC<XRPLProviderProps> = ({ children }) => {
       setIsAuthReady(false)
       return
     }
+    
+    console.log('🔐 Initializing Xaman OAuth...')
+    
     const instance = new XummPkce(appKey, {
       redirectUrl: window.location.origin,
       storage: localStorage,
     })
     setXumm(instance)
+    
     ;(async () => {
       try {
+        console.log('🔍 Checking Xaman auth state...')
         const state = await instance.state()
+        console.log('Xaman state:', state)
+        
         const acct = (state as any)?.me?.account || (state as any)?.me?.sub || null
         if (acct) {
+          console.log('✅ Xaman auto-login:', acct)
           setAccount(acct)
           setIsConnected(true)
           setTimeout(() => { void refreshBalances() }, 250)
+        } else {
+          console.log('ℹ️ No existing Xaman session')
         }
-      } catch {}
+      } catch (error) {
+        console.error('❌ Xaman auth check failed:', error)
+      }
       setIsAuthReady(true)
     })()
   }, [])
@@ -129,29 +148,70 @@ export const XRPLProvider: React.FC<XRPLProviderProps> = ({ children }) => {
       // Get DRIPPY issued currency balance via account_lines
       const issuer = import.meta.env.VITE_DRIPPY_ISSUER as string | undefined
       const currency = import.meta.env.VITE_DRIPPY_CURRENCY as string | undefined
+      
+      console.log('📊 Environment Config:', {
+        issuer: import.meta.env.VITE_DRIPPY_ISSUER,
+        currency: import.meta.env.VITE_DRIPPY_CURRENCY,
+        testnet: import.meta.env.VITE_XRPL_TESTNET
+      })
+      
       if (issuer && currency) {
-        const toHex = (s: string) => Array.from(new TextEncoder().encode(s)).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase()
+        // Convert to hex and pad to 40 chars (20 bytes) - same as backend
+        const toHex = (s: string) => Array.from(new TextEncoder().encode(s)).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase().padEnd(40, '0')
         const targetAlpha = currency
         const targetHex = currency.length > 3 ? toHex(currency) : undefined
+        
+        console.log('🔍 Checking for DRIPPY trustline:', { issuer, currency, targetAlpha, targetHex })
+        
         const linesResp: any = await client.request({
           command: 'account_lines',
           account,
           ledger_index: 'validated'
         } as any)
         const lines = (linesResp.result?.lines || []) as Array<any>
+        
+        console.log('📋 Account lines (FULL):', lines)
+        console.log('📋 Account lines (SIMPLE):', lines.map(l => ({ currency: l.currency, account: l.account, balance: l.balance })))
+        
+        // Check each line individually
+        lines.forEach((line, index) => {
+          const cur = (line.currency || '').toUpperCase()
+          const peer = (line.account || line.issuer || '').trim()
+          const matchesIssuer = peer === issuer
+          const matchesCurrency = (cur === targetAlpha.toUpperCase() || (targetHex && cur === targetHex))
+          
+          console.log(`Line ${index}:`, {
+            currency: cur,
+            account: peer,
+            balance: line.balance,
+            matchesIssuer,
+            matchesCurrency,
+            isMatch: matchesIssuer && matchesCurrency
+          })
+        })
+        
         const match = lines.find(l => {
           const cur = (l.currency || '').toUpperCase()
           const peer = (l.account || l.issuer || '').trim()
           return peer === issuer && (cur === targetAlpha.toUpperCase() || (targetHex && cur === targetHex))
         })
+        
         if (match) {
+          console.log('✅ DRIPPY trustline found!', match)
           setHasDrippyTrustline(true)
           const bal = match.balance ?? '0'
+          console.log('💰 Setting DRIPPY balance to:', bal)
           setDrippyBalance(bal)
         } else {
+          console.log('❌ DRIPPY trustline not found')
+          console.log('Expected issuer:', issuer)
+          console.log('Expected currency (alpha):', targetAlpha)
+          console.log('Expected currency (hex):', targetHex)
           setHasDrippyTrustline(false)
           setDrippyBalance(null)
         }
+      } else {
+        console.warn('⚠️ Missing issuer or currency in env:', { issuer, currency })
       }
     } catch (error) {
       console.error('Failed to refresh balances:', error)
